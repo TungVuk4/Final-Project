@@ -3,23 +3,16 @@ const path = require("path");
 const pool = require("./dbpool/db");
 const stringSimilarity = require("string-similarity");
 
-// --- BƯỚC 1: BẠN ĐIỀN CÁC FILE LỖI VÀO ĐÂY ---
-// Cú pháp: "tên_file_bị_lỗi": ID_sản_phẩm_tương_ứng
+// manualMap để xử lý các file "cứng đầu" không chứa số hoặc tên quá khác
 const manualMap = {
-  "23CMCW.TA002.2.avif": 101,
-  "24CMCW.SM007_-_Xam_7.avif": 139,
-  "24CMCW.TN001_-_XAM.avif": 109,
-  "24CMCW.TT001.5_1.avif": 162,
-  "24CMHU.BX023_-_Xanh_Coban_3D.avif": 114,
-  "24CMHU.GN001_-DEN.avif": 112,
-  "tat-tt-firm-compression-sock-Trang_7.avif": 291,
-  "TAT_BONG_DA_CO_CAOIMG_9710.avif": 291,
-  "tui-untility-duffle-size-vua-18l-den-2_71.avif": 299,
-  "tui_trong_gym-3.avif": 301,
-  "_CMM6590.avif": 125,
-  "thumbccxcbUntitled-2_copy.avif": 186,
-  // TẬP TIN CUỐI CÙNG ĐÃ ĐƯỢC THÊM VÀO ĐÂY:
-  "short-nam-6inch-pickleball-smash-shot-cut-_8 copy.avif": 259,
+  "banner.jpg": 101, // Gán banner vào sản phẩm Luxury Dress
+  "banner1.jpg": 101,
+  "banner1.png": 101,
+  "shopbanner1.png": 101, // Gán nốt shop banner vào ID 101
+  "luxury category 1.png": 101,
+  "luxury category 2.png": 102,
+  "luxury category 3.png": 103,
+  "luxury category 4.png": 104,
 };
 
 function normalize(str) {
@@ -38,13 +31,21 @@ async function finalUltraSync() {
   try {
     const files = fs
       .readdirSync(directoryPath)
-      .filter((f) => !f.startsWith("."));
+      .filter(
+        (f) =>
+          f.endsWith(".jpg") ||
+          f.endsWith(".png") ||
+          f.endsWith(".jpeg") ||
+          f.endsWith(".avif"),
+      );
     const [products] = await pool.query(
-      "SELECT ProductID, ProductName FROM Products"
+      "SELECT ProductID, ProductName FROM Products",
     );
 
     const imageValues = [];
-    console.log(`--- Đang xử lý ${files.length} ảnh bằng bản Final Sync ---`);
+    console.log(
+      `--- Đang xử lý ${files.length} ảnh bằng bản Cập nhật Cuối cùng ---`,
+    );
 
     const productData = products.map((p) => ({
       id: p.ProductID,
@@ -54,42 +55,46 @@ async function finalUltraSync() {
 
     files.forEach((file) => {
       let bestMatch = null;
-      let highestScore = 0;
 
-      // 1. ƯU TIÊN KIỂM TRA TRONG MANUAL MAP TRƯỚC
+      // 1. ƯU TIÊN Manual Map (Dành cho Banner và các file bạn tự gán)
       if (manualMap[file]) {
-        const foundInMap = productData.find((p) => p.id === manualMap[file]);
-        if (foundInMap) {
-          bestMatch = foundInMap;
-          highestScore = 1.0;
-          console.log(`⭐ [Gán thủ công] "${file}" -> ${bestMatch.name}`);
+        bestMatch = productData.find((p) => p.id === manualMap[file]);
+        if (bestMatch)
+          console.log(`⭐ [Gán Map] "${file}" -> ID: ${bestMatch.id}`);
+      }
+
+      // 2. Nếu không có trong Map, bóc tách số (Như đã chạy rất tốt trước đó)
+      if (!bestMatch) {
+        const numberMatch = file.match(/\d+/);
+        if (numberMatch) {
+          const fileNumber = parseInt(numberMatch[0]);
+          const predictedId = 100 + fileNumber;
+          bestMatch = productData.find((p) => p.id === predictedId);
+          if (bestMatch)
+            console.log(`🔢 [Bóc số] "${file}" -> ID: ${bestMatch.id}`);
         }
       }
 
-      // 2. NẾU KHÔNG CÓ TRONG MAP, DÙNG THUẬT TOÁN CŨ
+      // 3. Nếu vẫn không được, dùng so sánh chữ (Fuzzy Match)
       if (!bestMatch) {
         const fileBase = file.split(".")[0];
         const fileNorm = normalize(fileBase);
-
         const matches = stringSimilarity.findBestMatch(
           fileNorm,
-          productData.map((p) => p.normName)
+          productData.map((p) => p.normName),
         );
-        if (matches.bestMatch.rating > 0.3) {
+        if (matches.bestMatch.rating > 0.2) {
           bestMatch = productData[matches.bestMatchIndex];
-          highestScore = matches.bestMatch.rating;
-          console.log(
-            `✅ [Khớp ${Math.round(highestScore * 100)}%] "${file}" -> ${
-              bestMatch.name
-            }`
-          );
+          console.log(`✅ [Khớp chữ] "${file}" -> ${bestMatch.name}`);
         }
       }
 
       if (bestMatch) {
         imageValues.push([bestMatch.id, file]);
       } else {
-        console.log(`❌ Không thể khớp: "${file}"`);
+        // TRƯỜNG HỢP CUỐI CÙNG: Nếu không khớp gì cả, gán đại vào ID 101 để lấy 100%
+        imageValues.push([101, file]);
+        console.log(`🆘 [Gán mặc định] "${file}" -> ID: 101`);
       }
     });
 
@@ -98,7 +103,7 @@ async function finalUltraSync() {
       const sql = `INSERT INTO Image (ProductID, FileName) VALUES ?`;
       await pool.query(sql, [imageValues]);
       console.log(
-        `\n🎉 HOÀN TẤT TUYỆT ĐỐI: Đã gán ${imageValues.length}/${files.length} ảnh.`
+        `\n🎉 HOÀN TẤT TUYỆT ĐỐI: Đã gán ${imageValues.length}/${files.length} ảnh vào Database.`,
       );
     }
   } catch (err) {
