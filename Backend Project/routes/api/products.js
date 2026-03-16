@@ -1,0 +1,477 @@
+const express = require("express");
+const router = express.Router();
+const mysql = require("mysql2");
+require("dotenv").config();
+const pool = require("../../dbpool/db");
+const { requireAuth, requireAdmin } = require("../../middlewares/auth");
+
+const multer = require("multer");
+const path = require("path");
+// Định nghĩa nơi lưu trữ file
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Đảm bảo thư mục 'uploads/product_images' tồn tại
+    cb(null, "uploads/product_images");
+  },
+  filename: (req, file, cb) => {
+    // SỬA: Đặt tên file là timestamp_originalname.ext (An toàn hơn)
+    cb(
+      null,
+      Date.now() + "-" + file.originalname // Sửa thành tên file an toàn
+    );
+  },
+});
+
+const upload = multer({ storage: storage });
+
+// ----------------------------------------------------------------
+// [PUBLIC] Tìm kiếm Sản phẩm
+// GET /api/products/search?query=áo thun
+// ----------------------------------------------------------------
+router.get("/search", async (req, res) => {
+  const searchQuery = req.query.query; // Lấy từ khóa tìm kiếm từ query param
+
+  if (!searchQuery) {
+    return res
+      .status(400)
+      .json({ message: "Vui lòng cung cấp từ khóa tìm kiếm (query)." });
+  }
+
+  try {
+    // Sử dụng %...% để tìm kiếm các sản phẩm có chứa từ khóa
+    const searchPattern = `%${searchQuery}%`;
+
+    const [rows] = await pool.query(
+      `SELECT p.ProductID, p.ProductName, p.Price, c.CategoryName 
+             FROM Products p 
+             LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
+             WHERE p.ProductName LIKE ? OR p.Description LIKE ?`, // THÊM p. cho rõ ràng
+      [searchPattern, searchPattern]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: rows,
+      count: rows.length,
+    });
+  } catch (error) {
+    console.error("Lỗi khi tìm kiếm sản phẩm:", error);
+    res.status(500).json({ error: "Lỗi server khi tìm kiếm." });
+  }
+});
+// Áp dụng cho tất cả các route dưới
+
+// ----------------------------------------------------------------
+// [PUBLIC] Lấy danh sách sản phẩm (có thể thêm filter/pagination)
+// GET /api/products
+// ----------------------------------------------------------------
+router.get("/", async (req, res) => {
+  try {
+    // Chỉ lấy các trường cơ bản cho danh sách
+    const sql = `
+            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, c.CategoryName
+            FROM Products p
+            LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
+            WHERE p.StockQuantity > 0 
+            LIMIT 10
+        `;
+    const [rows] = await pool.query(sql);
+    res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách sản phẩm:", error);
+    res.status(500).json({ error: "Lỗi server khi lấy dữ liệu" });
+  }
+});
+
+router.get(
+  "/getProducts_Admin",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      // Chỉ lấy các trường cơ bản cho danh sách
+      const sql = `
+            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, c.CategoryName
+            FROM Products p
+            LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
+          
+        `;
+      const [rows] = await pool.query(sql);
+      res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách sản phẩm:", error);
+      res.status(500).json({ error: "Lỗi server khi lấy dữ liệu" });
+    }
+  }
+);
+
+// ----------------------------------------------------------------
+// [PUBLIC] Lấy chi tiết sản phẩm (JOIN với Image, Sizes)
+// GET /api/products/:id
+// ----------------------------------------------------------------
+router.get("/:id", async (req, res) => {
+  const productID = req.params.id;
+  try {
+    // 1. Lấy thông tin cơ bản
+    const [productRows] = await pool.query(
+      `SELECT p.*, c.CategoryName 
+             FROM Products p 
+             LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
+             WHERE p.ProductID = ?`,
+      [productID]
+    );
+
+    if (productRows.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm." });
+    }
+    const product = productRows[0];
+
+    // 2. Lấy kích cỡ và tồn kho
+    const [sizeRows] = await pool.query(
+      `SELECT NameSize, StockQuantity FROM Product_Sizes WHERE ProductID = ?`,
+      [productID]
+    );
+
+    // 3. Lấy hình ảnh
+    const [imageRows] = await pool.query(
+      `SELECT FileName FROM Image WHERE ProductID = ?`,
+      [productID]
+    );
+
+    // 4. Lấy đánh giá (chỉ 5 cái gần nhất)
+    const [reviewRows] = await pool.query(
+      `SELECT u.FullName, r.Rating, r.Comment, r.CreatedAt 
+             FROM Reviews r 
+             JOIN Users u ON r.UserID = u.UserID 
+             WHERE r.ProductID = ? 
+             ORDER BY r.CreatedAt DESC LIMIT 5`,
+      [productID]
+    );
+
+    product.sizes = sizeRows;
+    product.images = imageRows.map((img) => img.FileName);
+    product.reviews = reviewRows;
+
+    return res.status(200).json({ success: true, data: product });
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết sản phẩm:", error);
+    return res.status(500).json({ error: "Lỗi server khi lấy dữ liệu" });
+  }
+});
+
+// ----------------------------------------------------------------
+// [ADMIN] Thêm sản phẩm (ví dụ phức tạp cần giao dịch)
+// POST /api/products (Sử dụng requireAdmin Middleware trên server.js)
+// ----------------------------------------------------------------
+router.post("/", requireAuth, requireAdmin, async (req, res) => {
+  const {
+    ProductName,
+    Description,
+    Price,
+    StockQuantity,
+    CategoryID,
+    Sizes,
+    Images,
+  } = req.body;
+  let connection;
+
+  if (!ProductName || !Price || !CategoryID) {
+    return res
+      .status(400)
+      .json({ message: "Thiếu thông tin cơ bản của sản phẩm." });
+  }
+
+  try {
+    // Bắt đầu TRANSACTION
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // 1. Thêm vào Products
+    const [productResult] = await connection.query(
+      `INSERT INTO Products (ProductName, Description, Price, StockQuantity, CategoryID) 
+             VALUES (?, ?, ?, ?, ?)`,
+      [ProductName, Description, Price, StockQuantity, CategoryID]
+    );
+    const productID = productResult.insertId;
+
+    // 2. Thêm vào Product_Sizes (nếu có)
+    if (Sizes && Sizes.length > 0) {
+      const sizeValues = Sizes.map((s) => [
+        productID,
+        s.NameSize,
+        s.StockQuantity,
+      ]);
+      await connection.query(
+        `INSERT INTO Product_Sizes (ProductID, NameSize, StockQuantity) VALUES ?`,
+        [sizeValues]
+      );
+    }
+
+    // 3. Thêm vào Image (nếu có)
+    if (Images && Images.length > 0) {
+      const imageValues = Images.map((img) => [productID, img.FileName]);
+      await connection.query(
+        `INSERT INTO Image (ProductID, FileName) VALUES ?`,
+        [imageValues]
+      );
+    }
+
+    // COMMIT TRANSACTION
+    await connection.commit();
+    res
+      .status(201)
+      .json({ success: true, message: "Thêm sản phẩm thành công.", productID });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback(); // ROLLBACK nếu có lỗi
+    }
+    console.error("Lỗi khi thêm sản phẩm (Transaction Rollback):", error);
+    res.status(500).json({ error: "Lỗi server khi thêm dữ liệu" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// ----------------------------------------------------------------
+// [ADMIN] Cập nhật sản phẩm
+// PUT /api/products/:id
+// ----------------------------------------------------------------
+router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
+  const productID = req.params.id;
+  const {
+    ProductName,
+    Description,
+    Price,
+    StockQuantity,
+    CategoryID,
+    Sizes,
+    Images,
+  } = req.body;
+  let connection;
+
+  if (!ProductName || !Price || !CategoryID) {
+    return res
+      .status(400)
+      .json({ message: "Thiếu thông tin cơ bản để cập nhật." });
+  }
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // 1. Cập nhật bảng Products
+    await connection.query(
+      `UPDATE Products SET ProductName=?, Description=?, Price=?, StockQuantity=?, CategoryID=? WHERE ProductID=?`,
+      [ProductName, Description, Price, StockQuantity, CategoryID, productID]
+    );
+
+    // 2. Cập nhật Product_Sizes (Xóa cũ, chèn mới)
+    await connection.query(`DELETE FROM Product_Sizes WHERE ProductID = ?`, [
+      productID,
+    ]);
+    if (Sizes && Sizes.length > 0) {
+      const sizeValues = Sizes.map((s) => [
+        productID,
+        s.NameSize,
+        s.StockQuantity,
+      ]);
+      await connection.query(
+        `INSERT INTO Product_Sizes (ProductID, NameSize, StockQuantity) VALUES ?`,
+        [sizeValues]
+      );
+    }
+
+    // 3. Cập nhật Image (Xóa cũ, chèn mới)
+    await connection.query(`DELETE FROM Image WHERE ProductID = ?`, [
+      productID,
+    ]);
+    if (Images && Images.length > 0) {
+      const imageValues = Images.map((img) => [productID, img.FileName]);
+      await connection.query(
+        `INSERT INTO Image (ProductID, FileName) VALUES ?`,
+        [imageValues]
+      );
+    }
+
+    await connection.commit();
+    res
+      .status(200)
+      .json({ success: true, message: "Cập nhật sản phẩm thành công." });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Lỗi khi cập nhật sản phẩm:", error);
+    res.status(500).json({ error: "Lỗi server khi cập nhật dữ liệu" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// ----------------------------------------------------------------
+// [ADMIN] Xóa sản phẩm
+// DELETE /api/products/:id
+// ----------------------------------------------------------------
+router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
+  const productID = req.params.id;
+  let connection;
+
+  try {
+    // Xóa sản phẩm sẽ tự động xóa các ràng buộc khóa ngoại (ví dụ: Product_Sizes, Image)
+    // Dựa trên cấu hình ON DELETE CASCADE trong CSDL (nếu bạn có)
+    // Nếu không có ON DELETE CASCADE, bạn phải xóa thủ công các bảng liên quan:
+    // Product_Sizes, Image, Cart_Items, OrderDetails, Reviews, Product_Costs TRƯỚC
+
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // Xóa các dữ liệu phụ thuộc (Ví dụ nếu không có ON DELETE CASCADE)
+    await connection.query("DELETE FROM Product_Costs WHERE ProductID = ?", [
+      productID,
+    ]);
+    await connection.query("DELETE FROM Reviews WHERE ProductID = ?", [
+      productID,
+    ]);
+    await connection.query("DELETE FROM OrderDetails WHERE ProductID = ?", [
+      productID,
+    ]);
+    await connection.query("DELETE FROM Cart_Items WHERE ProductID = ?", [
+      productID,
+    ]);
+    await connection.query("DELETE FROM Product_Sizes WHERE ProductID = ?", [
+      productID,
+    ]);
+    await connection.query("DELETE FROM Image WHERE ProductID = ?", [
+      productID,
+    ]);
+
+    const [result] = await connection.query(
+      "DELETE FROM Products WHERE ProductID = ?",
+      [productID]
+    );
+
+    await connection.commit();
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy sản phẩm để xóa." });
+    }
+    res
+      .status(200)
+      .json({ success: true, message: "Xóa sản phẩm thành công." });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Lỗi khi xóa sản phẩm:", error);
+    res.status(500).json({ error: "Lỗi server khi xóa dữ liệu" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// ----------------------------------------------------------------
+// [ADMIN] Upload hình ảnh cho sản phẩm
+// POST /api/products/:productId/upload-image
+// ----------------------------------------------------------------
+// Sử dụng upload.array('images', 5) cho phép upload tối đa 5 file với key là 'images'
+router.post(
+  "/:productId/upload-image",
+  requireAuth,
+  requireAdmin,
+  upload.array("images", 5),
+  async (req, res) => {
+    const productId = req.params.productId;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "Không tìm thấy file hình ảnh." });
+    }
+
+    try {
+      const fileNames = req.files.map((file) => [productId, file.filename]);
+
+      // 1. Thêm tên file vào bảng Image
+      const sql = `INSERT INTO Image (ProductID, FileName) VALUES ?`;
+      await pool.query(sql, [fileNames]);
+
+      res.status(201).json({
+        success: true,
+        message: "Upload và cập nhật hình ảnh thành công.",
+        files: req.files.map((f) => f.filename),
+      });
+    } catch (error) {
+      console.error("Lỗi khi upload và lưu DB:", error);
+      res.status(500).json({ error: "Lỗi server khi xử lý file" });
+    }
+  }
+);
+
+// ----------------------------------------------------------------
+// [CUSTOMER] Đánh giá Sản phẩm
+// POST /api/products/:id/review
+// ----------------------------------------------------------------
+router.post("/:id/review", requireAuth, async (req, res) => {
+  const productId = req.params.id; // Lấy ID sản phẩm từ URL
+  const userId = req.user.userId; // Lấy UserID từ Token (Sau khi qua requireAuth)
+  const { rating, comment } = req.body;
+  let connection;
+
+  if (!rating || rating < 1 || rating > 5) {
+    return res.status(400).json({
+      message: "Vui lòng cung cấp điểm đánh giá hợp lệ (từ 1 đến 5).",
+    });
+  }
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // 1. Kiểm tra Sản phẩm có tồn tại không
+    const [productRows] = await connection.query(
+      "SELECT ProductID FROM Products WHERE ProductID = ?",
+      [productId]
+    );
+    if (productRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm này." });
+    }
+
+    // 2. Kiểm tra người dùng đã đánh giá sản phẩm này chưa (Tránh đánh giá trùng lặp)
+    const [existingReview] = await connection.query(
+      "SELECT ReviewID FROM Reviews WHERE UserID = ? AND ProductID = ?",
+      [userId, productId]
+    );
+
+    if (existingReview.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        message:
+          "Bạn đã đánh giá sản phẩm này rồi. Vui lòng chỉnh sửa đánh giá cũ.",
+      });
+    }
+
+    // 3. Chèn đánh giá mới vào bảng Reviews và LƯU KẾT QUẢ (ĐÃ SỬA LỖI)
+    const [reviewResult] = await connection.query(
+      "INSERT INTO Reviews (ProductID, UserID, Rating, Comment) VALUES (?, ?, ?, ?)",
+      [productId, userId, rating, comment]
+    );
+
+    // Lấy ID của bản ghi đánh giá vừa tạo
+    const reviewId = reviewResult.insertId;
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: "Đánh giá của bạn đã được gửi thành công!",
+      reviewId: reviewId, // <--- ĐÃ SỬA LỖI ReferenceError
+    });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Lỗi khi gửi đánh giá:", error);
+    res.status(500).json({ error: "Lỗi server khi xử lý đánh giá." });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+module.exports = router;

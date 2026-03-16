@@ -1,0 +1,12 @@
+/* 1. Thư viện Icon và Theme của PrimeReact */
+@import "primeicons/primeicons.css";
+@import "primereact/resources/themes/lara-light-cyan/theme.css";
+@import "primereact/resources/primereact.min.css";
+
+/* 2. Tailwind CSS (Đặt sau để có ưu tiên cao hơn) */
+@import "tailwindcss";
+
+/* 3. CSS tùy chỉnh của riêng bạn (nếu có) */
+:root {
+  --primary-color: #06b6d4; /* Ví dụ màu Cyan phù hợp với theme Lara Light Cyan */
+}

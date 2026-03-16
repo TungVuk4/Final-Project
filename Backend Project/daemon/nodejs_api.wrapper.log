@@ -1,0 +1,17 @@
+2024-05-22 13:37:03 - Starting C:\Program Files\nodejs\node.exe  --harmony C:\NotificationServer\node_modules\node-windows\lib\wrapper.js --file C:\NotificationServer\server.js --scriptoptions= --log "NodeJS_API wrapper" --grow 0.25 --wait 1 --maxrestarts 3 --abortonerror n --stopparentfirst undefined
+2024-05-22 13:37:03 - Started 4328
+2024-06-24 15:27:31 - Stopping nodejs_api.exe
+2024-06-24 15:27:31 - ProcessKill 4328
+2024-06-24 15:27:31 - Shutdown exception
+Message:A system shutdown is in progress. (Exception from HRESULT: 0x8007045B)
+Stacktrace:   at System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo)
+   at System.Management.ManagementScope.InitializeGuts(Object o)
+   at System.Management.ManagementScope.Initialize()
+   at System.Management.ManagementObjectSearcher.Initialize()
+   at System.Management.ManagementObjectSearcher.Get()
+   at winsw.WrapperService.GetChildPids(Int32 pid)
+   at winsw.WrapperService.StopProcessAndChildren(Int32 pid)
+   at winsw.WrapperService.StopIt()
+   at winsw.WrapperService.OnShutdown()
+2024-06-24 15:28:15 - Starting C:\Program Files\nodejs\node.exe  --harmony C:\NotificationServer\node_modules\node-windows\lib\wrapper.js --file C:\NotificationServer\server.js --scriptoptions= --log "NodeJS_API wrapper" --grow 0.25 --wait 1 --maxrestarts 3 --abortonerror n --stopparentfirst undefined
+2024-06-24 15:28:16 - Started 1380

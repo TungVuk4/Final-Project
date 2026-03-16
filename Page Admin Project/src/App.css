@@ -1,0 +1,115 @@
+/* --- CUSTOM THANH BỘ LỌC CAO CẤP (SIDEBAR) --- */
+
+/* 1. Nền tổng thể và Bo góc */
+.dark .p-sidebar {
+  background-color: #1c252e !important;
+  color: #f1f5f9 !important;
+  border-left: 1px solid rgba(145, 158, 171, 0.12) !important;
+  box-shadow: -12px 0 24px -4px rgba(0, 0, 0, 0.16) !important;
+}
+
+/* 2. Tiêu đề Bộ lọc */
+.dark .p-sidebar .p-sidebar-header {
+  background-color: #1c252e !important;
+  padding: 1.5rem !important;
+  border-bottom: 1px dashed rgba(145, 158, 171, 0.2) !important;
+}
+.dark .p-sidebar .p-sidebar-header h2 {
+  font-weight: 800 !important;
+  font-size: 1.25rem !important;
+  color: #ffffff !important;
+}
+
+/* 3. Nội dung bên trong (Fix lỗi khoảng trắng bẩn) */
+.dark .p-sidebar .p-sidebar-content {
+  background-color: #1c252e !important;
+  padding: 1.5rem !important;
+}
+
+/* 4. Fix màu cho các nhãn Label (ÁO NAM, QUẦN NAM...) */
+.dark .p-sidebar span[style*="font-weight: bold"],
+.dark .p-sidebar .font-bold.text-gray-400 {
+  color: #919eab !important; /* Màu xám nhạt sang trọng */
+  font-size: 0.75rem !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* 5. Hiện rõ giá tiền ($0 - $1000) */
+.dark .p-sidebar .text-cyan-600 {
+  color: #22d3ee !important;
+  background: rgba(34, 211, 238, 0.12) !important;
+  padding: 2px 8px !important;
+  border-radius: 6px !important;
+  font-weight: 700 !important;
+}
+
+/* 6. Fix Slider (Thanh trượt) */
+.dark .p-slider {
+  background: #334155 !important;
+  height: 4px !important;
+}
+.dark .p-slider .p-slider-range {
+  background: #22d3ee !important;
+}
+.dark .p-slider .p-slider-handle {
+  border: 2px solid #22d3ee !important;
+  background: #1c252e !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* 7. Footer chứa nút (Xóa tất cả & Áp dụng) */
+.dark .p-sidebar .border-t {
+  border-top: 1px solid rgba(145, 158, 171, 0.12) !important;
+  padding: 1.5rem !important;
+  background-color: #1c252e !important;
+}
+
+/* 8. Nút "Xóa tất cả" (Dễ nhìn hơn) */
+.dark .p-sidebar .p-button.p-button-text {
+  color: #f1f5f9 !important;
+  font-weight: 700 !important;
+}
+
+/* 9. Nút "Áp dụng" (Nổi bật) */
+.dark .p-sidebar .p-button:not(.p-button-text) {
+  background: #ffffff !important;
+  color: #1c252e !important;
+  border: none !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 16px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+/* 10. Fix màu các Checkbox/Radio */
+.dark .p-checkbox .p-checkbox-box,
+.dark .p-radiobutton .p-radiobutton-box {
+  background: #212b36 !important;
+  border-color: #454f5b !important;
+}
+
+/* src/App.css */
+
+/* Khi gạt nút, ép tất cả các khối màu trắng sang màu tối */
+.dark .bg-white {
+  background-color: #1c252e !important;
+}
+
+/* Ép màu nền chính của trang con */
+.dark main {
+  background-color: #161c24 !important;
+}
+
+/* Đổi màu chữ tiêu đề trang con sang trắng */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4 {
+  color: #ffffff !important;
+}
+
+/* Đổi màu chữ nội dung thường sang xám nhạt cho dễ nhìn */
+.dark p,
+.dark span:not(.p-button-label) {
+  color: #919eab !important;
+}
