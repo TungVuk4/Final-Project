@@ -128,6 +128,11 @@ router.get(
           [row.ProductID]
         );
         row.colors = colors;
+        const [imgs] = await pool.query(
+          "SELECT FileName FROM Image WHERE ProductID = ? LIMIT 1",
+          [row.ProductID]
+        );
+        row.firstImage = imgs.length > 0 ? imgs[0].FileName : null;
       }
 
       res.status(200).json({ success: true, data: rows });
@@ -139,7 +144,24 @@ router.get(
 );
 
 // ----------------------------------------------------------------
-// [PUBLIC] Lấy chi tiết sản phẩm (JOIN với Image, Sizes)
+// [ADMIN 1 + 2] Upload ảnh sản phẩm
+// POST /api/products/upload-image
+// ----------------------------------------------------------------
+router.post(
+  "/upload-image",
+  requireAuth,
+  requireAdminLevel2,
+  upload.single("image"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Không có file nào được upload." });
+    }
+    const fileName = req.file.filename;
+    res.status(200).json({ success: true, fileName, message: "Upload ảnh thành công." });
+  }
+);
+
+
 // GET /api/products/:id
 // ----------------------------------------------------------------
 router.get("/:id", async (req, res) => {

@@ -46,10 +46,12 @@ Final Project/
 
 ```
 Backend Project/
-├── server.js               # Entry point — khởi tạo Express, đăng ký routes
+├── server.js               # Entry point — khởi tạo Express, đăng ký routes (Auth, Products, Colors, Logs...)
 ├── install.js              # Đăng ký server như Windows Service
 ├── uninstall.js            # Gỡ Windows Service
 ├── sync-images.js          # Đồng bộ hình ảnh sản phẩm
+├── seed-admin.js           # Script khởi tạo 3 tài khoản Admin mặc định
+├── db-update-promotions.js # Cập nhật cấu trúc DB cho chức năng Khuyến mãi
 ├── .env                    # Biến môi trường (DB, JWT secret, Firebase...)
 ├── package.json
 ├── _helpers/               # Tiện ích nội bộ
@@ -58,19 +60,21 @@ Backend Project/
 ├── dbpool/
 │   └── db.js               # Khởi tạo connection pool MySQL
 ├── middlewares/
-│   └── auth.js             # Middleware xác thực JWT (requireAuth, requireAdmin)
+│   └── auth.js             # Middleware xác thực JWT (requireAuth, requireAdmin, requireAdminLevel1/2/3)
 ├── services/
 │   └── login.js            # Business logic xử lý đăng nhập, token
 ├── routes/
 │   └── api/                # Định nghĩa API endpoints
-│       ├── auth-temp.js    # Đăng ký, Đăng nhập, OTP, quên mật khẩu
-│       ├── products.js     # CRUD sản phẩm, tìm kiếm, upload ảnh
-│       ├── categories.js   # CRUD danh mục sản phẩm
+│       ├── auth-temp.js    # Đăng ký, Đăng nhập, OTP, quên mật khẩu (vô hạn cho Admin)
+│       ├── products.js     # CRUD sản phẩm, lọc theo ColorID/CategoryID, khoảng giá min-max
+│       ├── categories.js   # CRUD danh mục sản phẩm (4 Bộ sưu tập Collection)
+│       ├── colors.js       # 🆕 Quản lý bảng màu (BLACK, RED, BLUE, WHITE, ROSE, GREEN)
+│       ├── admin_logs.js   # 🆕 Nhật ký hoạt động của 3 Admin (CRUD Logs)
 │       ├── cart.js         # Giỏ hàng (thêm/xóa/cập nhật)
 │       ├── orders.js       # Đặt hàng, lịch sử, cập nhật trạng thái
-│       ├── promotions.js   # Quản lý mã giảm giá
+│       ├── promotions.js   # Quản lý mã giảm giá (Admin Level 2)
 │       ├── stats.js        # Báo cáo doanh thu, thống kê
-│       └── user.js         # Hồ sơ người dùng, đổi mật khẩu
+│       └── user.js         # Hồ sơ người dùng, phân quyền CanDeleteProduct, IsActive
 ├── uploads/                # Thư mục lưu ảnh sản phẩm được upload
 └── daemon/                 # Windows Service runner (WinSW)
     ├── nodejs_api.exe
@@ -82,11 +86,13 @@ Backend Project/
 | Nhóm | Prefix | Mô tả | Bảo vệ |
 |---|---|---|---|
 | Auth | `/api/auth-temp` | Đăng ký, đăng nhập, OTP, quên mật khẩu | Public |
-| Sản phẩm | `/api/products` | Xem danh sách, tìm kiếm, CRUD | Public / Admin |
-| Danh mục | `/api/categories` | Xem & quản lý danh mục | Public / Admin |
+| Sản phẩm | `/api/products` | Xem danh sách, tìm kiếm, CRUD (Filter Color/Cat/Price) | Public / Admin |
+| Danh mục | `/api/categories` | 4 Bộ sưu tập chính (Luxury, Special, Summer, Unique) | Public / Admin |
+| Màu sắc | `/api/colors` | 🆕 6 màu cơ bản (BLACK, RED, BLUE...) | Public / Admin |
 | Giỏ hàng | `/api/cart` | Thêm/xóa/cập nhật giỏ hàng | Customer Token |
 | Đơn hàng | `/api/orders` | Đặt hàng, lịch sử, trạng thái | Customer/Admin Token |
-| Người dùng | `/api/user` | Hồ sơ, đổi mật khẩu | Customer Token |
+| Nhật ký | `/api/admin_logs` | 🆕 Ghi lại mọi hành động của Admin | Admin Level 1 |
+| Người dùng | `/api/user` | Hồ sơ, đổi mật khẩu, Reset MK, Khóa TK | Customer Token |
 | Khuyến mãi | `/api/promotions` | Quản lý mã giảm giá | Admin Level 2 |
 | Thống kê | `/api/stats` | Báo cáo doanh thu / tồn kho | Admin Token |
 
@@ -123,12 +129,14 @@ Backend Project/
 | Chức năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
 |---|:---:|:---:|:---:|
 | Dashboard & Thống kê | ✅ | ❌ | ❌ |
-| Quản lý người dùng | ✅ | ❌ | ❌ |
-| Thêm / Sửa / Xóa sản phẩm | ✅ | ✅ | ❌ |
+| Quản lý người dùng | ✅ (Reset MK/Khóa TK) | ❌ | ❌ |
+| Thêm / Sửa sản phẩm | ✅ | ✅ | ❌ |
+| **Duyệt xóa sản phẩm** | ✅ (Admin 2 xin xóa) | ❌ (Chỉ gửi yc) | ❌ |
 | Quản lý Khuyến Mãi | ✅ | ✅ | ❌ |
 | Xem danh sách đơn hàng | ✅ | ❌ | ✅ |
 | Lên đơn hàng cho khách | ✅ | ❌ | ✅ |
-| **Duyệt / Từ chối đơn hàng** | ✅ | ❌ | ❌ |
+| **Duyệt đơn hàng** | ✅ (Duyệt Admin 3) | ❌ | ❌ |
+| Quản lý Nhật ký (Logs) | ✅ (Xem + Xóa) | ✅ (Chỉ xem) | ✅ (Chỉ xem) |
 | Phân quyền Admin khác | ✅ | ❌ | ❌ |
 | Cấu hình hệ thống | ✅ | ❌ | ❌ |
 
@@ -304,12 +312,13 @@ Page Admin Project/
     │   ├── MobileDrawer.jsx
     │   └── UserPopover.jsx # Popover thông tin user + nút Logout
     └── pages/              # Các trang quản trị
-        ├── Dashboard.jsx       # Trang tổng quan & thống kê
-        ├── Product.jsx         # Quản lý sản phẩm (CRUD + upload ảnh)
-        ├── Users.jsx           # Quản lý người dùng
-        ├── Roles.jsx           # 🆕 Trang phân quyền 3 Admin — UI card + bảng + sơ đồ luồng
+        ├── Dashboard.jsx       # Trang tổng quan & thống kê doanh thu
+        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors (Filter Price)
+        ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct)
+        ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin Level 2)
+        ├── Roles.jsx           # Quản lý phân quyền + Sơ đồ luồng + 🆕 Nhật ký (Logs)
         └── auth/               # Trang xác thực
-            └── Login.jsx       # Đăng nhập (không có Register)
+            └── Login.jsx       # Đăng nhập (Role Admin + Token vô hạn)
 ```
 
 ### 🔐 Phân Quyền Hiển Thị theo Tài Khoản
@@ -524,4 +533,4 @@ npm run dev
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 18/03/2026*
+*📅 Tài liệu được cập nhật ngày: 20/03/2026*
