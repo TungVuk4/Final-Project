@@ -87,7 +87,7 @@ Backend Project/
 | Giỏ hàng | `/api/cart` | Thêm/xóa/cập nhật giỏ hàng | Customer Token |
 | Đơn hàng | `/api/orders` | Đặt hàng, lịch sử, trạng thái | Customer/Admin Token |
 | Người dùng | `/api/user` | Hồ sơ, đổi mật khẩu | Customer Token |
-| Khuyến mãi | `/api/promotions` | Quản lý mã giảm giá | Admin Token |
+| Khuyến mãi | `/api/promotions` | Quản lý mã giảm giá | Admin Level 2 |
 | Thống kê | `/api/stats` | Báo cáo doanh thu / tồn kho | Admin Token |
 
 ### Thư viện chính
@@ -105,6 +105,72 @@ Backend Project/
 | `node-schedule` | Cron job tự động |
 | `cors` | Cho phép cross-origin requests |
 | `dotenv` | Quản lý biến môi trường |
+
+### 🔐 Hệ Thống Phân Quyền 3 Admin Cố Định
+
+> 3 tài khoản Admin được **tự động tạo trong DB mỗi khi server khởi động** (hàm `initAdminAccounts()` trong `server.js`). Nếu đã tồn tại thì bỏ qua — không tạo trùng.
+
+#### Tài khoản Admin cố định
+
+| # | Tên | Email | Mật khẩu | Vai trò |
+|---|---|---|---|---|
+| 1 | Admin Chính | `admin1@fashionstyle.com` | `Admin@123` | Toàn quyền hệ thống |
+| 2 | Admin Kho | `admin2@fashionstyle.com` | `Admin@456` | Quản lý sản phẩm & kho |
+| 3 | Admin Vận Hành | `admin3@fashionstyle.com` | `Admin@789` | Xử lý đơn hàng |
+
+#### Phân quyền theo chức năng
+
+| Chức năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
+|---|:---:|:---:|:---:|
+| Dashboard & Thống kê | ✅ | ❌ | ❌ |
+| Quản lý người dùng | ✅ | ❌ | ❌ |
+| Thêm / Sửa / Xóa sản phẩm | ✅ | ✅ | ❌ |
+| Quản lý Khuyến Mãi | ✅ | ✅ | ❌ |
+| Xem danh sách đơn hàng | ✅ | ❌ | ✅ |
+| Lên đơn hàng cho khách | ✅ | ❌ | ✅ |
+| **Duyệt / Từ chối đơn hàng** | ✅ | ❌ | ❌ |
+| Phân quyền Admin khác | ✅ | ❌ | ❌ |
+| Cấu hình hệ thống | ✅ | ❌ | ❌ |
+
+#### Luồng xử lý đơn hàng (phối hợp 3 Admin)
+
+```
+Khách đặt hàng (Web / App)
+        ↓
+Backend lưu đơn → Nodemailer gửi email về Admin 3
+        ↓
+Admin 3 (Vận Hành) xem thông tin khách → Lên đơn hàng
+        ↓
+Admin 1 (Chính) nhận thông báo → Duyệt hoặc Từ chối
+        ↓
+Nếu Duyệt: Admin 3 cập nhật trạng thái → Giao hàng
+Nếu Từ chối: Hệ thống thông báo lý do về Admin 3
+        ↓
+Nodemailer gửi email xác nhận / thông báo về khách hàng
+```
+
+#### Middleware phân quyền Backend
+
+```javascript
+// middlewares/auth.js
+requireAuth    // Kiểm tra JWT hợp lệ (tất cả admin & customer)
+requireAdmin   // Chỉ cho phép Role = 'Admin' (cả 3 admin)
+
+// Kế hoạch mở rộng — phân biệt Admin theo Email/SubRole:
+requireAdminLevel1  // Chỉ admin1@fashionstyle.com
+requireAdminLevel2  // admin1 + admin2 (quản lý kho)
+requireAdminLevel3  // admin1 + admin3 (vận hành đơn hàng)
+```
+
+#### Token Admin — Không có thời hạn
+
+```javascript
+// auth-temp.js — login endpoint
+const token =
+  user.Role === 'Admin'
+    ? jwt.sign(payload, secret)              // Admin → vô hạn
+    : jwt.sign(payload, secret, { expiresIn: '7d' }); // Customer → 7 ngày
+```
 
 ---
 
@@ -225,28 +291,53 @@ Page Admin Project/
     ├── tailwind.config.js  # Cấu hình Tailwind CSS v4
     ├── assets/             # Tài nguyên tĩnh
     ├── router/
-    │   └── AppRouter.jsx   # Định nghĩa routes admin
+    │   └── AppRouter.jsx   # Định nghĩa routes — ProtectedRoute redirect về /login
     ├── stores/
-    │   └── auth.jsx        # Zustand store — quản lý auth state
+    │   └── auth.jsx        # Zustand store — lưu token + user vào localStorage
     ├── services/
-    │   └── ApiServices.js  # Axios instance → Backend API
+    │   └── ApiServices.js  # Axios instance → Backend API :8080
     ├── layout/             # Các layout component
     │   ├── AppLayout.jsx   # Layout chính (Sidebar + Topbar)
     │   ├── AuthLayout.jsx  # Layout trang đăng nhập
-    │   ├── Sidebar.jsx     # Sidebar điều hướng
+    │   ├── Sidebar.jsx     # Sidebar điều hướng (không có nút Đăng nhập)
     │   ├── Topbar.jsx      # Thanh trên cùng (user, breadcrumb)
     │   ├── MobileDrawer.jsx
-    │   └── UserPopover.jsx # Popover thông tin user
+    │   └── UserPopover.jsx # Popover thông tin user + nút Logout
     └── pages/              # Các trang quản trị
         ├── Dashboard.jsx       # Trang tổng quan & thống kê
         ├── Product.jsx         # Quản lý sản phẩm (CRUD + upload ảnh)
         ├── Users.jsx           # Quản lý người dùng
-        ├── Roles.jsx           # Phân quyền
+        ├── Roles.jsx           # 🆕 Trang phân quyền 3 Admin — UI card + bảng + sơ đồ luồng
         └── auth/               # Trang xác thực
-            ├── Login.jsx
-            ├── Register.jsx
-            ├── ForgotPassword.jsx
-            └── ResetPassword.jsx
+            └── Login.jsx       # Đăng nhập (không có Register)
+```
+
+### 🔐 Phân Quyền Hiển Thị theo Tài Khoản
+
+> Kế hoạch phân quyền giao diện: mỗi tài khoản Admin đăng nhập vào sẽ thấy các menu/chức năng phù hợp với vai trò.
+
+| Menu / Tính năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
+|---|:---:|:---:|:---:|
+| Bảng điều khiển (Dashboard) | ✅ | ❌ | ❌ |
+| Người dùng | ✅ | ❌ | ❌ |
+| **Sản phẩm** (thêm/sửa/xóa) | ✅ | ✅ | ❌ |
+| **Khuyến Mãi** (Mã code, % Sale) | ✅ | ✅ | ❌ |
+| **Đơn hàng** (xem + lên đơn) | ✅ | ❌ | ✅ |
+| **Duyệt đơn hàng** | ✅ | ❌ | ❌ |
+| Vai trò (Roles — chỉ xem) | ✅ | ✅ | ✅ |
+
+### Luồng Đăng Nhập & Điều Hướng
+
+```
+Mở trình duyệt → http://localhost:5173
+        ↓
+ProtectedRoute kiểm tra isAuthenticated (Zustand localStorage)
+        ↓ Chưa đăng nhập
+/login  ←  Trang đăng nhập
+        ↓ Đăng nhập thành công (role phải là 'Admin')
+Zustand lưu token + user info → Navigate về /
+        ↓
+Dashboard hiện thị theo quyền của tài khoản
 ```
 
 ### Thư viện chính

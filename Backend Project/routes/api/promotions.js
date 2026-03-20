@@ -1,7 +1,7 @@
 // routes/api/promotions.js
 const express = require("express");
 const pool = require("../../dbpool/db");
-const { requireAuth, requireAdmin } = require("../../middlewares/auth");
+const { requireAuth, requireAdminLevel2 } = require("../../middlewares/auth");
 const router = express.Router();
 
 // ----------------------------------------------------------------
@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
 // [ADMIN] Thêm chương trình khuyến mãi
 // POST /api/promotions
 // ----------------------------------------------------------------
-router.post("/", requireAuth, requireAdmin, async (req, res) => {
+router.post("/", requireAuth, requireAdminLevel2, async (req, res) => {
   const { Code, DiscountPercent, StartDate, EndDate } = req.body;
 
   if (!Code || !DiscountPercent || !StartDate || !EndDate) {
@@ -61,7 +61,7 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 // [ADMIN] Cập nhật khuyến mãi
 // PUT /api/promotions/:id
 // ----------------------------------------------------------------
-router.put("/:id", requireAdmin, async (req, res) => {
+router.put("/:id", requireAuth, requireAdminLevel2, async (req, res) => {
   const id = req.params.id;
   const { Code, DiscountPercent, StartDate, EndDate, IsActive } = req.body;
 
@@ -89,7 +89,7 @@ router.put("/:id", requireAdmin, async (req, res) => {
 // [ADMIN] Xóa khuyến mãi
 // DELETE /api/promotions/:id
 // ----------------------------------------------------------------
-router.delete("/:id", requireAdmin, async (req, res) => {
+router.delete("/:id", requireAuth, requireAdminLevel2, async (req, res) => {
   const id = req.params.id;
   try {
     const [result] = await pool.query(

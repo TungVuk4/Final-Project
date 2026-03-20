@@ -6,8 +6,8 @@ const jwt = require("jsonwebtoken");
 const pool = require("../../dbpool/db");
 const router = express.Router();
 const secret = process.env.JWT_SECRET || "YOUR_SUPER_SECRET_KEY";
-const { requireAuth, requireAdmin } = require("../../middlewares/auth");
-const nodemailer = require("nodemailer"); // Giả định dùng thư viện này để gửi mail (npm install nodemailer)
+const { requireAuth, requireAdmin, requireAdminLevel1 } = require("../../middlewares/auth");
+const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -82,7 +82,7 @@ router.post("/login", async (req, res) => {
   try {
     // XÓA 'Avatar' khỏi danh sách SELECT bên dưới
     const [rows] = await pool.query(
-      "SELECT UserID, FullName, Email, PasswordHash, Role FROM Users WHERE Email = ?",
+      "SELECT UserID, FullName, Email, PasswordHash, Role, IsActive FROM Users WHERE Email = ?",
       [Email]
     );
 
@@ -93,6 +93,11 @@ router.post("/login", async (req, res) => {
     }
 
     const user = rows[0];
+
+    // KIỂM TRA TÀI KHOẢN CÓ BỊ KHÓA KHÔNG
+    if (user.IsActive === 0) {
+      return res.status(403).json({ message: "Tài khoản của bạn đã bị Admin khóa." });
+    }
     const isMatch = await bcrypt.compare(Password, user.PasswordHash);
     if (!isMatch) {
       return res
@@ -100,9 +105,13 @@ router.post("/login", async (req, res) => {
         .json({ message: "Email hoặc mật khẩu không đúng." });
     }
 
-    const token = jwt.sign({ userId: user.UserID, role: user.Role }, secret, {
-      expiresIn: "7d",
-    });
+    // ✅ Admin → token vô hạn (không có expiresIn)
+    // ✅ Customer → token hết hạn sau 7 ngày
+    const tokenPayload = { userId: user.UserID, role: user.Role, email: user.Email };
+    const token =
+      user.Role === "Admin"
+        ? jwt.sign(tokenPayload, secret)          // Vô hạn
+        : jwt.sign(tokenPayload, secret, { expiresIn: "7d" }); // 7 ngày
 
     res.status(200).json({
       success: true,

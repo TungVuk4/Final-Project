@@ -7,26 +7,59 @@ import {
   RiUser3Fill,
   RiShieldUserFill,
   RiShoppingBag3Fill,
-  RiLoginCircleLine,
+  RiPriceTag3Fill,
 } from "react-icons/ri";
+import { useAuthStore } from "../stores/auth";
 
 export default function Sidebar({ collapsed }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
+  const currentEmail = user?.email || "";
 
   const isActive = (path) => location.pathname === path;
 
-  const menuItems = [
-    { label: t("dashboard"), icon: <RiDashboardFill size={22} />, path: "/" },
-    { label: t("users"), icon: <RiUser3Fill size={22} />, path: "/users" },
-    { label: t("roles"), icon: <RiShieldUserFill size={22} />, path: "/roles" },
+  // Phân quyền menu theo email
+  // admin1: tất cả
+  // admin2: chỉ /product + /roles
+  // admin3: chỉ /users + /roles
+  const ALL_MENU = [
+    {
+      label: t("dashboard"),
+      icon: <RiDashboardFill size={22} />,
+      path: "/",
+      allowed: ["admin1@fashionstyle.com"],
+    },
+    {
+      label: t("users"),
+      icon: <RiUser3Fill size={22} />,
+      path: "/users",
+      allowed: ["admin1@fashionstyle.com", "admin3@fashionstyle.com"],
+    },
+    {
+      label: t("roles"),
+      icon: <RiShieldUserFill size={22} />,
+      path: "/roles",
+      allowed: ["admin1@fashionstyle.com", "admin2@fashionstyle.com", "admin3@fashionstyle.com"],
+    },
     {
       label: t("product"),
       icon: <RiShoppingBag3Fill size={22} />,
       path: "/product",
+      allowed: ["admin1@fashionstyle.com", "admin2@fashionstyle.com"],
+    },
+    {
+      label: "Khuyến Mãi",
+      icon: <RiPriceTag3Fill size={22} />,
+      path: "/promotions",
+      allowed: ["admin1@fashionstyle.com", "admin2@fashionstyle.com"],
     },
   ];
+
+  const menuItems = ALL_MENU.filter((item) =>
+    item.allowed.includes(currentEmail)
+  );
 
   // Tinh chỉnh màu sắc cho Active và Normal ở cả 2 chế độ
   const activeStyles =
@@ -103,28 +136,7 @@ export default function Sidebar({ collapsed }) {
           );
         })}
 
-        {/* Separator & Login Button */}
-        <div
-          className={`my-4 border-t border-gray-50 dark:border-gray-800 pt-4`}
-        >
-          <button
-            onClick={() => navigate("/login")}
-            className={`
-              w-full flex items-center p-3.5 rounded-xl text-gray-500 dark:text-gray-400
-              hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 transition-all duration-200
-              ${collapsed ? "justify-center" : "px-4"}
-            `}
-          >
-            <div className={`${!collapsed && "mr-4"} flex items-center`}>
-              <RiLoginCircleLine size={22} />
-            </div>
-            {!collapsed && (
-              <span className="text-[14px] font-semibold transition-colors">
-                {t("login")}
-              </span>
-            )}
-          </button>
-        </div>
+
       </div>
 
       {/* Footer Account Section */}
@@ -134,16 +146,25 @@ export default function Sidebar({ collapsed }) {
             collapsed ? "justify-center" : "gap-3"
           }`}
         >
-          <div className="w-10 h-10 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold shadow-md shadow-cyan-100 dark:shadow-none">
-            JV
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md text-sm flex-shrink-0 ${
+            currentEmail === "admin1@fashionstyle.com" ? "bg-gradient-to-r from-violet-600 to-purple-700" :
+            currentEmail === "admin2@fashionstyle.com" ? "bg-gradient-to-r from-cyan-500 to-blue-600" :
+            currentEmail === "admin3@fashionstyle.com" ? "bg-gradient-to-r from-emerald-500 to-teal-600" :
+            "bg-cyan-600"
+          }`}>
+            {currentEmail === "admin1@fashionstyle.com" ? "A1" :
+             currentEmail === "admin2@fashionstyle.com" ? "A2" :
+             currentEmail === "admin3@fashionstyle.com" ? "A3" : "JV"}
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-bold text-slate-800 dark:text-gray-200 truncate transition-colors">
-                JimVu
+                {user?.name || "Admin"}
               </span>
               <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-tighter truncate transition-colors">
-                Fashion JimVu
+                {currentEmail === "admin1@fashionstyle.com" ? "Toàn quyền" :
+                 currentEmail === "admin2@fashionstyle.com" ? "Quản lý kho" :
+                 currentEmail === "admin3@fashionstyle.com" ? "Vận hành" : "Admin"}
               </span>
             </div>
           )}

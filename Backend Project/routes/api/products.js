@@ -3,7 +3,7 @@ const router = express.Router();
 const mysql = require("mysql2");
 require("dotenv").config();
 const pool = require("../../dbpool/db");
-const { requireAuth, requireAdmin } = require("../../middlewares/auth");
+const { requireAuth, requireAdmin, requireAdminLevel2 } = require("../../middlewares/auth");
 
 const multer = require("multer");
 const path = require("path");
@@ -42,7 +42,7 @@ router.get("/search", async (req, res) => {
     const searchPattern = `%${searchQuery}%`;
 
     const [rows] = await pool.query(
-      `SELECT p.ProductID, p.ProductName, p.Price, c.CategoryName 
+      `SELECT p.ProductID, p.ProductName, p.Price, p.DiscountPercent, c.CategoryName 
              FROM Products p 
              LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
              WHERE p.ProductName LIKE ? OR p.Description LIKE ?`, // THÊM p. cho rõ ràng
@@ -69,7 +69,7 @@ router.get("/", async (req, res) => {
   try {
     // Chỉ lấy các trường cơ bản cho danh sách
     const sql = `
-            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, c.CategoryName
+            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, p.DiscountPercent, c.CategoryName
             FROM Products p
             LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
             WHERE p.StockQuantity > 0 
@@ -88,18 +88,51 @@ router.get(
   requireAuth,
   requireAdmin,
   async (req, res) => {
+    const { categoryID, colorID, query, minPrice, maxPrice } = req.query;
     try {
-      // Chỉ lấy các trường cơ bản cho danh sách
-      const sql = `
-            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, c.CategoryName
+      let sql = `
+            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, p.DiscountPercent, c.CategoryName
             FROM Products p
             LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
-          
+            WHERE 1=1
         `;
-      const [rows] = await pool.query(sql);
+      const params = [];
+
+      if (categoryID && categoryID !== "all") {
+        sql += " AND p.CategoryID = ?";
+        params.push(categoryID);
+      }
+
+      if (query) {
+        sql += " AND (p.ProductName LIKE ? OR p.Description LIKE ?)";
+        params.push(`%${query}%`, `%${query}%`);
+      }
+
+      if (minPrice !== undefined && maxPrice !== undefined) {
+        sql += " AND p.Price BETWEEN ? AND ?";
+        params.push(minPrice, maxPrice);
+      }
+
+      // Nếu muốn lọc theo màu sắc (ColorID), chúng ta cần Join với bảng product_colors
+      if (colorID && colorID !== "all") {
+        sql += " AND p.ProductID IN (SELECT ProductID FROM product_colors WHERE ColorID = ?)";
+        params.push(colorID);
+      }
+
+      const [rows] = await pool.query(sql, params);
+
+      // Lấy danh sách màu của từng sản phẩm để gửi về Frontend (Optionally)
+      for (let row of rows) {
+        const [colors] = await pool.query(
+          "SELECT c.ColorName, c.HexCode FROM product_colors pc JOIN colors c ON pc.ColorID = c.ColorID WHERE pc.ProductID = ?",
+          [row.ProductID]
+        );
+        row.colors = colors;
+      }
+
       res.status(200).json({ success: true, data: rows });
     } catch (error) {
-      console.error("Lỗi khi lấy danh sách sản phẩm:", error);
+      console.error("Lỗi khi lấy danh sách sản phẩm Admin:", error);
       res.status(500).json({ error: "Lỗi server khi lấy dữ liệu" });
     }
   }
@@ -161,11 +194,9 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN] Thêm sản phẩm (ví dụ phức tạp cần giao dịch)
-// POST /api/products (Sử dụng requireAdmin Middleware trên server.js)
-// ----------------------------------------------------------------
-router.post("/", requireAuth, requireAdmin, async (req, res) => {
+// [ADMIN 1 + 2] Thêm sản phẩm — requireAdminLevel2 (Admin Chính + Admin Kho)
+// POST /api/products
+router.post("/", requireAuth, requireAdminLevel2, async (req, res) => {
   const {
     ProductName,
     Description,
@@ -174,13 +205,14 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
     CategoryID,
     Sizes,
     Images,
+    DiscountPercent
   } = req.body;
   let connection;
 
-  if (!ProductName || !Price || !CategoryID) {
+  if (ProductName === undefined || Price === undefined || CategoryID === undefined) {
     return res
       .status(400)
-      .json({ message: "Thiếu thông tin cơ bản của sản phẩm." });
+      .json({ message: "Thiếu thông tin cơ bản của sản phẩm (Tên, Giá, hoặc Danh mục)." });
   }
 
   try {
@@ -190,9 +222,9 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 
     // 1. Thêm vào Products
     const [productResult] = await connection.query(
-      `INSERT INTO Products (ProductName, Description, Price, StockQuantity, CategoryID) 
-             VALUES (?, ?, ?, ?, ?)`,
-      [ProductName, Description, Price, StockQuantity, CategoryID]
+      `INSERT INTO Products (ProductName, Description, Price, StockQuantity, CategoryID, DiscountPercent) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+      [ProductName, Description, Price, StockQuantity, CategoryID, DiscountPercent || 0]
     );
     const productID = productResult.insertId;
 
@@ -234,11 +266,9 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN] Cập nhật sản phẩm
+// [ADMIN 1 + 2] Cập nhật sản phẩm — requireAdminLevel2
 // PUT /api/products/:id
-// ----------------------------------------------------------------
-router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
+router.put("/:id", requireAuth, requireAdminLevel2, async (req, res) => {
   const productID = req.params.id;
   const {
     ProductName,
@@ -248,13 +278,14 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
     CategoryID,
     Sizes,
     Images,
+    DiscountPercent
   } = req.body;
   let connection;
 
-  if (!ProductName || !Price || !CategoryID) {
+  if (ProductName === undefined || Price === undefined || CategoryID === undefined) {
     return res
       .status(400)
-      .json({ message: "Thiếu thông tin cơ bản để cập nhật." });
+      .json({ message: "Thiếu thông tin cơ bản để cập nhật (Tên, Giá, hoặc Danh mục)." });
   }
 
   try {
@@ -263,8 +294,8 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
 
     // 1. Cập nhật bảng Products
     await connection.query(
-      `UPDATE Products SET ProductName=?, Description=?, Price=?, StockQuantity=?, CategoryID=? WHERE ProductID=?`,
-      [ProductName, Description, Price, StockQuantity, CategoryID, productID]
+      `UPDATE Products SET ProductName=?, Description=?, Price=?, StockQuantity=?, CategoryID=?, DiscountPercent=? WHERE ProductID=?`,
+      [ProductName, Description, Price, StockQuantity, CategoryID, DiscountPercent || 0, productID]
     );
 
     // 2. Cập nhật Product_Sizes (Xóa cũ, chèn mới)
@@ -308,11 +339,9 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN] Xóa sản phẩm
+// [ADMIN 1 + 2] Xóa sản phẩm — requireAdminLevel2
 // DELETE /api/products/:id
-// ----------------------------------------------------------------
-router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
+router.delete("/:id", requireAuth, requireAdminLevel2, async (req, res) => {
   const productID = req.params.id;
   let connection;
 
@@ -323,6 +352,15 @@ router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
     // Product_Sizes, Image, Cart_Items, OrderDetails, Reviews, Product_Costs TRƯỚC
 
     connection = await pool.getConnection();
+
+    // KIỂM TRA QUYỀN XÓA DÀNH CHO ADMIN 2
+    const [userRows] = await connection.query("SELECT Email, CanDeleteProduct FROM Users WHERE UserID = ?", [req.user.userId]);
+    const user = userRows[0];
+    if (user && user.Email === 'admin2@fashionstyle.com' && !user.CanDeleteProduct) {
+         connection.release();
+         return res.status(403).json({ success: false, message: "Admin 1 chưa cấp quyền XÓA sản phẩm cho bạn!" });
+    }
+
     await connection.beginTransaction();
 
     // Xóa các dữ liệu phụ thuộc (Ví dụ nếu không có ON DELETE CASCADE)
@@ -369,15 +407,12 @@ router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN] Upload hình ảnh cho sản phẩm
+// [ADMIN 1 + 2] Upload hình ảnh — requireAdminLevel2
 // POST /api/products/:productId/upload-image
-// ----------------------------------------------------------------
-// Sử dụng upload.array('images', 5) cho phép upload tối đa 5 file với key là 'images'
 router.post(
   "/:productId/upload-image",
   requireAuth,
-  requireAdmin,
+  requireAdminLevel2,
   upload.array("images", 5),
   async (req, res) => {
     const productId = req.params.productId;

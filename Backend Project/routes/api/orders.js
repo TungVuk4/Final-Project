@@ -1,8 +1,24 @@
 // routes/api/orders.js
 const express = require("express");
 const pool = require("../../dbpool/db");
-const { requireAuth, requireAdmin } = require("../../middlewares/auth");
+const nodemailer = require("nodemailer");
+const {
+  requireAuth,
+  requireAdmin,
+  requireAdminLevel1,
+  requireAdminLevel3,
+} = require("../../middlewares/auth");
 const router = express.Router();
+
+// Nodemailer transporter (dùng chung với auth)
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: { rejectUnauthorized: false },
+});
 
 // ----------------------------------------------------------------
 // [CUSTOMER] Đặt hàng (Checkout) - SỬ DỤNG TRANSACTION
@@ -118,6 +134,39 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
     await connection.commit();
 
+    // 📧 Gửi email thông báo đến Admin Vận Hành (Admin 3) khi có đơn hàng mới
+    try {
+      const [userRows] = await pool.query(
+        "SELECT FullName, Email FROM Users WHERE UserID = ?",
+        [userId]
+      );
+      const customerName = userRows[0]?.FullName || "Khách hàng";
+      const customerEmail = userRows[0]?.Email || "";
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: "admin3@fashionstyle.com",
+        subject: `[FashionStyle] ⚠️ Đơn hàng mới #${orderId} cần xử lý`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;">
+            <h2 style="color:#059669;">📦 Có đơn hàng mới cần xử lý!</h2>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:8px;font-weight:bold;">Mã đơn hàng:</td><td style="padding:8px;">#${orderId}</td></tr>
+              <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Khách hàng:</td><td style="padding:8px;">${customerName} (${customerEmail})</td></tr>
+              <tr><td style="padding:8px;font-weight:bold;">Tổng tiền:</td><td style="padding:8px;">${finalAmount.toLocaleString("vi-VN")} VNĐ</td></tr>
+              <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Địa chỉ giao:</td><td style="padding:8px;">${ShippingAddress}</td></tr>
+              <tr><td style="padding:8px;font-weight:bold;">Phương thức TT:</td><td style="padding:8px;">${PaymentMethod}</td></tr>
+              <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Trạng thái:</td><td style="padding:8px;"><b>${initialStatus}</b></td></tr>
+            </table>
+            <br/>
+            <p style="color:#6b7280;">👉 Vui lòng vào <a href="http://localhost:5174">Trang Admin</a> để lên đơn hàng và chờ Admin Chính duyệt.</p>
+          </div>
+        `,
+      });
+    } catch (mailErr) {
+      console.warn("⚠️  Không gửi được email thông báo Admin3:", mailErr.message);
+    }
+
     res.status(201).json({
       success: true,
       message: "Đặt hàng thành công.",
@@ -154,14 +203,12 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN] Quản lý đơn hàng (Lấy tất cả)
+// [ADMIN 1 + 3] Xem tất cả đơn hàng — requireAdminLevel3
 // GET /api/orders/admin
-// ----------------------------------------------------------------
-router.get("/admin", requireAuth, requireAdmin, async (req, res) => {
+router.get("/admin", requireAuth, requireAdminLevel3, async (req, res) => {
   try {
     const sql = `
-            SELECT o.*, u.FullName 
+            SELECT o.*, u.FullName, u.Email, u.PhoneNumber
             FROM Orders o
             JOIN Users u ON o.UserID = u.UserID
             ORDER BY o.OrderDate DESC
@@ -174,11 +221,78 @@ router.get("/admin", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN] Cập nhật trạng thái đơn hàng
+// [ADMIN 1 ONLY] Duyệt / Từ chối đơn hàng — requireAdminLevel1
+// PUT /api/orders/admin/:id/approve
+router.put("/admin/:id/approve", requireAuth, requireAdminLevel1, async (req, res) => {
+  const orderId = req.params.id;
+  const { Action, Reason } = req.body; // Action: 'APPROVE' | 'REJECT'
+
+  if (!Action || !["APPROVE", "REJECT"].includes(Action.toUpperCase())) {
+    return res.status(400).json({ message: "Action phải là 'APPROVE' hoặc 'REJECT'." });
+  }
+
+  try {
+    const newStatus = Action.toUpperCase() === "APPROVE" ? "PROCESSING" : "CANCELLED";
+    const [result] = await pool.query(
+      "UPDATE Orders SET Status = ? WHERE OrderID = ?",
+      [newStatus, orderId]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng." });
+    }
+
+    // Lấy thông tin đơn hàng để gửi email
+    const [orderRows] = await pool.query(
+      `SELECT o.*, u.FullName, u.Email FROM Orders o JOIN Users u ON o.UserID = u.UserID WHERE o.OrderID = ?`,
+      [orderId]
+    );
+    const order = orderRows[0];
+
+    // 📧 Gửi email cho khách hàng
+    if (order?.Email) {
+      const isApproved = Action.toUpperCase() === "APPROVE";
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: order.Email,
+          subject: isApproved
+            ? `[FashionStyle] ✅ Đơn hàng #${orderId} đã được xác nhận!`
+            : `[FashionStyle] ❌ Đơn hàng #${orderId} đã bị từ chối`,
+          html: isApproved
+            ? `<h3>Xin chào ${order.FullName}! 🎉</h3><p>Đơn hàng <b>#${orderId}</b> của bạn đã được <b style="color:green;">xác nhận</b> và đang được Admin chuẩn bị giao.</p>`
+            : `<h3>Xin chào ${order.FullName},</h3><p>Rất tiếc! Đơn hàng <b>#${orderId}</b> đã bị <b style="color:red;">từ chối</b>. Lý do: <i>${Reason || "Không có lý do cụ thể"}</i>.</p><p>Bạn có thể liên hệ chúng tôi để được hỗ trợ.</p>`,
+        });
+      } catch (mailErr) {
+        console.warn("⚠️  Không gửi được email cho khách:", mailErr.message);
+      }
+    }
+
+    // 📧 Thông báo cho Admin 3 kết quả duyệt
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: "admin3@fashionstyle.com",
+        subject: `[FashionStyle] Đơn #${orderId} → ${Action.toUpperCase() === "APPROVE" ? "ĐÃ DUYỆT ✅" : "BỊ TỪ CHỐI ❌"}`,
+        html: `<p>Đơn hàng <b>#${orderId}</b> vừa được Admin Chính <b>${Action.toUpperCase() === "APPROVE" ? "duyệt" : "từ chối"}</b>.</p>${Reason ? `<p>Lý do: ${Reason}</p>` : ""}<p>Trạng thái mới: <b>${newStatus}</b></p>`,
+      });
+    } catch (mailErr) {
+      console.warn("⚠️  Không gửi được email cho Admin3:", mailErr.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Đơn hàng #${orderId} đã ${Action.toUpperCase() === "APPROVE" ? "được duyệt" : "bị từ chối"}.`,
+      newStatus,
+    });
+  } catch (error) {
+    console.error("Lỗi khi duyệt đơn hàng:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+});
+
+// [ADMIN 1 + 3] Cập nhật trạng thái vận chuyển — requireAdminLevel3
 // PUT /api/orders/admin/:id/status
-// ----------------------------------------------------------------
-router.put("/admin/:id/status", requireAuth, requireAdmin, async (req, res) => {
+router.put("/admin/:id/status", requireAuth, requireAdminLevel3, async (req, res) => {
   const orderId = req.params.id;
   const { Status } = req.body; // Trạng thái mới: 'Đang giao', 'Đã giao', 'Đã hủy'
 

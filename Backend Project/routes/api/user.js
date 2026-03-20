@@ -1,7 +1,7 @@
 const express = require("express");
 const pool = require("../../dbpool/db");
 const bcrypt = require("bcryptjs"); // Đảm bảo đã import bcrypt cho chức năng đổi mật khẩu
-const { requireAuth, requireAdmin } = require("../../middlewares/auth");
+const { requireAuth, requireAdmin, requireAdminLevel1 } = require("../../middlewares/auth");
 const router = express.Router();
 
 // ----------------------------------------------------------------
@@ -180,6 +180,50 @@ router.put("/change-password", requireAuth, async (req, res) => {
       .json({ success: true, message: "Thay đổi mật khẩu thành công." });
   } catch (error) {
     res.status(500).json({ error: "Lỗi server" });
+  }
+});
+
+// ----------------------------------------------------------------
+// [ADMIN 1 ONLY] Quản lý quyền hệ thống Admin 2 & 3
+// ----------------------------------------------------------------
+router.get("/admin/permissions", requireAuth, requireAdminLevel1, async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT Email, CanDeleteProduct, IsActive FROM Users WHERE Email IN ('admin2@fashionstyle.com', 'admin3@fashionstyle.com')");
+    
+    const admin2 = rows.find(r => r.Email === 'admin2@fashionstyle.com');
+    const admin3 = rows.find(r => r.Email === 'admin3@fashionstyle.com');
+
+    res.status(200).json({ 
+      success: true, 
+      admin2CanDelete: !!admin2?.CanDeleteProduct,
+      admin2IsActive: admin2?.IsActive !== 0,
+      admin3IsActive: admin3?.IsActive !== 0
+    });
+  } catch(error) { 
+    console.error("Lỗi get permissions:", error);
+    res.status(500).json({error: "Lỗi server"}) 
+  }
+});
+
+router.put("/admin/permissions", requireAuth, requireAdminLevel1, async (req, res) => {
+  const { admin2CanDelete } = req.body;
+  try {
+    await pool.query("UPDATE Users SET CanDeleteProduct = ? WHERE Email = 'admin2@fashionstyle.com'", [admin2CanDelete ? 1 : 0]);
+    res.status(200).json({ success: true, message: "Cập nhật quyền thành công" });
+  } catch(error) { 
+    console.error("Lỗi update permissions:", error);
+    res.status(500).json({error: "Lỗi server"}) 
+  }
+});
+
+router.put("/admin/lock", requireAuth, requireAdminLevel1, async (req, res) => {
+  const { email, lock } = req.body;
+  try {
+    await pool.query("UPDATE Users SET IsActive = ? WHERE Email = ?", [lock ? 0 : 1, email]);
+    res.status(200).json({ success: true, message: lock ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản" });
+  } catch(error) { 
+    console.error("Lỗi update lock:", error);
+    res.status(500).json({error: "Lỗi server"}) 
   }
 });
 

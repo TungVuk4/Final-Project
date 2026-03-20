@@ -1,29 +1,45 @@
 import React, { useRef, useState, useEffect } from "react";
 import { OverlayPanel } from "primereact/overlaypanel";
-import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
 import { InputText } from "primereact/inputtext";
 import { InputSwitch } from "primereact/inputswitch";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "../stores/auth";
+import { useAuthStore, FIXED_ADMINS } from "../stores/auth";
+import {
+  RiShieldStarFill,
+  RiStore2Fill,
+  RiTruckFill,
+  RiCheckFill,
+  RiLoaderLine,
+} from "react-icons/ri";
+
+const ADMIN_ICONS = {
+  "admin1@fashionstyle.com": { icon: <RiShieldStarFill size={16} />, color: "bg-violet-500", ring: "ring-violet-300" },
+  "admin2@fashionstyle.com": { icon: <RiStore2Fill size={16} />, color: "bg-cyan-500", ring: "ring-cyan-300" },
+  "admin3@fashionstyle.com": { icon: <RiTruckFill size={16} />, color: "bg-emerald-500", ring: "ring-emerald-300" },
+};
+
+const AVATAR_INITIALS = {
+  "admin1@fashionstyle.com": "A1",
+  "admin2@fashionstyle.com": "A2",
+  "admin3@fashionstyle.com": "A3",
+};
 
 export default function UserPopover() {
-  // Lấy dữ liệu user và hàm logout từ Auth Store đã kết nối API
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-
+  const switchAccount = useAuthStore((state) => state.switchAccount);
+  const isSwitching = useAuthStore((state) => state.isSwitching);
   const { t } = useTranslation();
   const op = useRef(null);
   const navigate = useNavigate();
 
   const [visibleProfile, setVisibleProfile] = useState(false);
   const [visibleSettings, setVisibleSettings] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(
-    localStorage.getItem("theme") === "dark"
-  );
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem("theme") === "dark");
+  const [switchingTo, setSwitchingTo] = useState(null);
 
-  // Xử lý chuyển đổi giao diện Sáng/Tối
   useEffect(() => {
     const html = document.documentElement;
     if (isDarkMode) {
@@ -41,215 +57,206 @@ export default function UserPopover() {
     navigate("/login");
   };
 
-  // Logic hiển thị Avatar: Ưu tiên ảnh từ DB, nếu không có dùng ảnh placeholder
-  const defaultAvatar =
-    "https://scontent-sin6-2.xx.fbcdn.net/v/t39.30808-1/456085326_1629435794569402_8130330138360519485_n.jpg?stp=cp6_dst-jpg_s200x200_tt6&_nc_cat=109&ccb=1-7&_nc_sid=1d2534&_nc_ohc=HwFVWdP9l8AQ7kNvwF3JaQe&_nc_oc=Adm9idEanr5QPPtcwuR4GnjgCSoJo9E3CN3tSDHUEwZyn6kkmh4cm4mcRDiBNhU2urI&_nc_zt=24&_nc_ht=scontent-sin6-2.xx&_nc_gid=xOrX9XiWwZvsYrVhuahU4g&oh=00_AfqSm2L0ufs73HAXet3w6LhZOxVIksNRtXa_Qigh1RrD1g&oe=6963BB1C";
-  const displayAvatar = user?.avatar || defaultAvatar;
+  const handleSwitchAccount = async (email) => {
+    if (email === user?.email || isSwitching) return;
+    setSwitchingTo(email);
+    const result = await switchAccount(email);
+    setSwitchingTo(null);
+    if (result.success) {
+      op.current.hide();
+      navigate("/");
+    }
+  };
+
+  const currentEmail = user?.email || "";
+  const currentInfo = ADMIN_ICONS[currentEmail];
+  const otherAdmins = FIXED_ADMINS.filter((a) => a.email !== currentEmail);
 
   return (
     <div className="flex items-center">
       {/* NÚT AVATAR TRÊN TOPBAR */}
       <div
-        className="relative flex items-center p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-all active:scale-95"
+        className="relative flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-all active:scale-95"
         onClick={(e) => op.current.toggle(e)}
       >
-        <img
-          src={displayAvatar}
-          alt="avatar"
-          className="w-9 h-9 rounded-full border-2 border-white dark:border-gray-700 shadow-sm object-cover"
-        />
-        <span
-          className={`absolute bottom-1 right-1 w-2.5 h-2.5 border-2 border-white rounded-full ${
-            isDarkMode ? "bg-gray-500" : "bg-green-500"
-          }`}
-        ></span>
+        {/* Avatar với màu theo cấp độ */}
+        <div className={`relative w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white dark:ring-gray-700 ${currentInfo?.color || "bg-gray-500"}`}>
+          {AVATAR_INITIALS[currentEmail] || "AD"}
+          {/* Dot online */}
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-white rounded-full"></span>
+        </div>
       </div>
 
-      {/* MENU NHỎ KHI CLICK VÀO AVATAR */}
+      {/* OVERLAY PANEL */}
       <OverlayPanel
         ref={op}
         className="p-0 shadow-2xl border-none rounded-[20px] overflow-hidden mt-2 dark:bg-[#1C252E]"
       >
-        <div className="w-[240px]">
-          <div className="px-6 py-5 flex flex-col bg-gray-50/50 dark:bg-[#212B36]">
-            <span className="font-bold text-[#212B36] dark:text-white text-[16px] truncate">
-              {user?.name || "Người dùng"}
-            </span>
-            <span className="text-gray-500 dark:text-gray-400 text-[13px] truncate">
-              {user?.email || "Chưa có email"}
-            </span>
+        <div className="w-[300px]">
+          {/* Header — Info tài khoản hiện tại */}
+          <div className={`px-5 py-4 bg-gradient-to-r ${FIXED_ADMINS.find(a => a.email === currentEmail)?.color || "from-gray-600 to-gray-700"} text-white`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center font-bold text-sm shadow-inner`}>
+                {AVATAR_INITIALS[currentEmail] || "AD"}
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-sm truncate">{user?.name || "Admin"}</div>
+                <div className="text-white/70 text-xs truncate">{user?.email || ""}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                  <span className="text-white/60 text-[11px]">Đang hoạt động</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="border-t border-dashed border-gray-200 dark:border-gray-700"></div>
 
-          <div className="flex flex-col p-2 gap-1">
-            <Button
-              label={t("home")}
-              icon="pi pi-home"
-              className="p-button-text text-[#212B36] dark:text-gray-300 text-sm text-left px-4 py-3 border-none hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl"
-              onClick={() => {
-                navigate("/");
-                op.current.hide();
-              }}
-            />
-            <Button
-              label={t("profile")}
-              icon="pi pi-user"
-              className="p-button-text text-[#212B36] dark:text-gray-300 text-sm text-left px-4 py-3 border-none hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl"
-              onClick={() => {
-                setVisibleProfile(true);
-                op.current.hide();
-              }}
-            />
-            <Button
-              label={t("settings")}
-              icon="pi pi-cog"
-              className="p-button-text text-[#212B36] dark:text-gray-300 text-sm text-left px-4 py-3 border-none hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl"
-              onClick={() => {
-                setVisibleSettings(true);
-                op.current.hide();
-              }}
-            />
+          {/* ACCOUNT SWITCHER */}
+          {otherAdmins.length > 0 && (
+            <>
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chuyển sang tài khoản</p>
+              </div>
+              <div className="px-3 pb-2 flex flex-col gap-1">
+                {otherAdmins.map((admin) => {
+                  const info = ADMIN_ICONS[admin.email];
+                  const isLoading = switchingTo === admin.email;
+                  return (
+                    <button
+                      key={admin.email}
+                      onClick={() => handleSwitchAccount(admin.email)}
+                      disabled={isSwitching}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left
+                        hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-60 disabled:cursor-wait`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${info?.color}`}>
+                        {isLoading ? (
+                          <RiLoaderLine className="animate-spin" size={16} />
+                        ) : (
+                          info?.icon
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-800 dark:text-white truncate">{admin.name}</div>
+                        <div className="text-[11px] text-gray-400 truncate">{admin.email}</div>
+                      </div>
+                      {!isLoading && (
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${info?.color} opacity-20`}>
+                          <RiCheckFill size={12} className="text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-dashed border-gray-200 dark:border-gray-700 mx-3"></div>
+            </>
+          )}
+
+          {/* Menu actions */}
+          <div className="flex flex-col p-2 gap-0.5">
+            <button
+              onClick={() => { navigate("/"); op.current.hide(); }}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+            >
+              <i className="pi pi-home text-gray-400" />
+              Trang chủ
+            </button>
+            <button
+              onClick={() => { setVisibleProfile(true); op.current.hide(); }}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+            >
+              <i className="pi pi-user text-gray-400" />
+              Hồ sơ
+            </button>
+            <button
+              onClick={() => { setVisibleSettings(true); op.current.hide(); }}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+            >
+              <i className="pi pi-cog text-gray-400" />
+              Cài đặt
+            </button>
           </div>
-          <div className="border-t border-dashed border-gray-200 dark:border-gray-700"></div>
+
+          <div className="border-t border-dashed border-gray-200 dark:border-gray-700 mx-3"></div>
+
           <div className="p-2">
-            <Button
-              label={t("logout")}
-              className="w-full p-button-text text-red-500 font-bold text-sm py-3 border-none hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl"
+            <button
               onClick={handleLogout}
-            />
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-red-500 font-semibold hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
+            >
+              <i className="pi pi-sign-out" />
+              Đăng xuất
+            </button>
           </div>
         </div>
       </OverlayPanel>
 
-      {/* DIALOG THÔNG TIN HỒ SƠ CHI TIẾT */}
+      {/* DIALOG HỒ SƠ */}
       <Dialog
         visible={visibleProfile}
         onHide={() => setVisibleProfile(false)}
         header="Hồ sơ"
         style={{ width: "480px" }}
-        modal
-        draggable={false}
-        resizable={false}
+        modal draggable={false} resizable={false}
         className="custom-profile-dialog"
         footer={
-          <div className="flex justify-end items-center gap-4 px-6 pb-6 pt-2">
-            <span
-              className="text-[#637381] dark:text-gray-400 font-bold cursor-pointer hover:text-[#212B36] dark:hover:text-white transition-colors"
-              onClick={() => setVisibleProfile(false)}
-            >
+          <div className="flex justify-end px-6 pb-6 pt-2">
+            <span className="text-gray-500 font-bold cursor-pointer hover:text-gray-800 dark:hover:text-white transition-colors" onClick={() => setVisibleProfile(false)}>
               Đóng
             </span>
           </div>
         }
       >
         <div className="flex flex-col items-center gap-6 py-4">
-          <img
-            src={displayAvatar}
-            className="w-24 h-24 rounded-full border-4 border-white dark:border-[#212B36] shadow-xl object-cover"
-            alt="user-profile"
-          />
-
-          <div className="w-full flex flex-col gap-6 px-4">
+          <div className={`w-24 h-24 rounded-2xl flex items-center justify-center text-white text-3xl font-black shadow-xl ${currentInfo?.color || "bg-gray-500"}`}>
+            {AVATAR_INITIALS[currentEmail] || "AD"}
+          </div>
+          <div className="w-full flex flex-col gap-4 px-4">
             <div className="flex flex-col gap-2">
-              <label className="font-extrabold text-[11px] text-[#637381] dark:text-[#919EAB] uppercase tracking-widest ml-1">
-                HỌ TÊN
-              </label>
-              <InputText
-                value={user?.name || ""}
-                disabled
-                className="p-3.5 border-none bg-gray-50 dark:bg-[#212B36] text-[#212B36] dark:text-white font-bold rounded-2xl w-full"
-              />
+              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">HỌ TÊN</label>
+              <InputText value={user?.name || ""} disabled className="p-3.5 border-none bg-gray-50 dark:bg-[#212B36] text-gray-800 dark:text-white font-bold rounded-2xl w-full" />
             </div>
-
             <div className="flex flex-col gap-2">
-              <label className="font-extrabold text-[11px] text-[#637381] dark:text-[#919EAB] uppercase tracking-widest ml-1">
-                EMAIL
-              </label>
-              <InputText
-                value={user?.email || user?.Email || ""}
-                disabled
-                className="p-3.5 border-none bg-gray-50 dark:bg-[#212B36] rounded-2xl w-full text-[#454F5B] dark:text-gray-400 font-bold italic"
-              />
+              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">EMAIL</label>
+              <InputText value={user?.email || ""} disabled className="p-3.5 border-none bg-gray-50 dark:bg-[#212B36] rounded-2xl w-full text-gray-500 dark:text-gray-400 font-bold" />
             </div>
-
             <div className="flex flex-col gap-2">
-              <label className="font-extrabold text-[11px] text-[#637381] dark:text-[#919EAB] uppercase tracking-widest ml-1">
-                VAI TRÒ
-              </label>
-              <div className="p-3.5 bg-blue-50/50 dark:bg-[#00B8D914] text-[#006C9C] dark:text-[#00B8D9] font-extrabold rounded-2xl text-center text-sm uppercase border border-blue-100 dark:border-[#00B8D93D] tracking-widest">
-                {user?.role || "GUEST"}
+              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">VAI TRÒ</label>
+              <div className="p-3.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-extrabold rounded-2xl text-center text-sm uppercase border border-blue-100 dark:border-blue-800 tracking-widest">
+                {user?.role || "ADMIN"}
               </div>
             </div>
           </div>
         </div>
       </Dialog>
 
-      {/* DIALOG CÀI ĐẶT DARK MODE */}
+      {/* DIALOG CÀI ĐẶT */}
       <Dialog
         visible={visibleSettings}
         onHide={() => setVisibleSettings(false)}
         header="Cài đặt"
         style={{ width: "400px" }}
-        modal
-        className="rounded-[32px] overflow-hidden dark:bg-[#161C24]"
+        modal className="rounded-[32px] overflow-hidden dark:bg-[#161C24]"
       >
         <div className="flex flex-col gap-6 py-4">
           <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#212B36] rounded-2xl border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <i
-                className={`pi ${
-                  isDarkMode
-                    ? "pi-moon text-yellow-400"
-                    : "pi-sun text-orange-400"
-                } text-xl`}
-              ></i>
-              <span className="font-bold dark:text-white">
-                Chế độ tối (Dark Mode)
-              </span>
+              <i className={`pi ${isDarkMode ? "pi-moon text-yellow-400" : "pi-sun text-orange-400"} text-xl`}></i>
+              <span className="font-bold dark:text-white">Chế độ tối (Dark Mode)</span>
             </div>
-            <InputSwitch
-              checked={isDarkMode}
-              onChange={(e) => setIsDarkMode(e.value)}
-            />
+            <InputSwitch checked={isDarkMode} onChange={(e) => setIsDarkMode(e.value)} />
           </div>
         </div>
       </Dialog>
 
       <style jsx="true">{`
-        .custom-profile-dialog .p-dialog-header {
-          padding: 1.5rem 1.5rem 0.5rem 1.5rem !important;
-          border: none !important;
-          background: #ffffff !important;
-        }
-        .dark .custom-profile-dialog .p-dialog-header {
-          background: #161c24 !important;
-        }
-        .custom-profile-dialog .p-dialog-header-title {
-          font-size: 1.25rem !important;
-          font-weight: 900 !important;
-          color: #212b36 !important;
-        }
-        .dark .custom-profile-dialog .p-dialog-header-title {
-          color: white !important;
-        }
-        .custom-profile-dialog .p-dialog-content {
-          padding: 0 1.5rem 1rem 1.5rem !important;
-          background: #ffffff !important;
-        }
-        .dark .custom-profile-dialog .p-dialog-content {
-          background: #161c24 !important;
-        }
-        .dark .custom-profile-dialog {
-          background-color: #161c24 !important;
-          border: 1px solid #212b36 !important;
-        }
-        .p-dialog-mask {
-          background-color: rgba(33, 43, 54, 0.6) !important;
-          backdrop-filter: blur(8px);
-        }
-        .p-overlaypanel-content {
-          padding: 0 !important;
-        }
+        .custom-profile-dialog .p-dialog-header { padding: 1.5rem 1.5rem 0.5rem 1.5rem !important; border: none !important; background: #ffffff !important; }
+        .dark .custom-profile-dialog .p-dialog-header { background: #161c24 !important; }
+        .custom-profile-dialog .p-dialog-content { padding: 0 1.5rem 1rem 1.5rem !important; background: #ffffff !important; }
+        .dark .custom-profile-dialog .p-dialog-content { background: #161c24 !important; }
+        .dark .custom-profile-dialog { background-color: #161c24 !important; border: 1px solid #212b36 !important; }
+        .p-overlaypanel-content { padding: 0 !important; }
+        .p-dialog-mask { background-color: rgba(33, 43, 54, 0.6) !important; backdrop-filter: blur(8px); }
       `}</style>
     </div>
   );

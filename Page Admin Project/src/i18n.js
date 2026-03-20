@@ -68,41 +68,21 @@ const resources = {
       apply: "Áp dụng",
       category: "Danh mục sản phẩm",
 
-      // Nhóm Áo Nam
-      group_tops: "Áo Nam",
-      tanktop: "Áo Tanktop",
-      t_shirt: "Áo thun",
-      sport_shirt: "Áo Thể Thao",
-      polo: "Áo Polo",
-      shirt: "Áo Sơ Mi",
-      long_sleeve: "Áo Dài Tay",
-      sweater: "Áo Sweater",
-      hoodie: "Áo Hoodie",
-      jacket: "Áo Khoác",
-      graphic_tshirt: "Áo thun Graphic",
+      // Nhóm Bộ sưu tập (Categories mới)
+      group_collections: "Bộ sưu tập đặc biệt",
+      special_edition: "Special Edition",
+      luxury_collection: "Luxury Collection",
+      summer_edition: "Summer Edition",
+      unique_collection: "Unique Collection",
 
-      // Nhóm Quần Nam
-      group_bottoms: "Quần Nam",
-      short: "Quần Short",
-      jogger: "Quần Jogger",
-      sport_pants: "Quần Thể Thao",
-      long_pants: "Quần Dài",
-      pants: "Quần Pants",
-      jeans: "Quần Jean",
-      khaki: "Quần Kaki",
-      swimwear: "Quần Bơi",
-
-      // Nhóm Quần Lót
-      group_underwear: "Quần Lót Nam",
-      brief: "Brief (Tam giác)",
-      trunk: "Trunk (Boxer)",
-      boxer_brief: "Boxer Brief (Boxer dài)",
-      long_leg: "Long Leg",
-      homewear: "Short mặc nhà",
-
-      // Phụ kiện
-      group_accessories: "Phụ kiện",
-      all_accessories: "Tất cả phụ kiện (Tất, mũ, túi...)",
+      // Màu sắc
+      colors_label: "Màu sắc",
+      color_black: "Đen (Black)",
+      color_red: "Đỏ (Red)",
+      color_blue: "Xanh dương (Blue)",
+      color_white: "Trắng (White)",
+      color_rose: "Hồng (Rose)",
+      color_green: "Xanh lá (Green)",
 
       // --- Sort keys ---
       sort_by: "Sắp xếp theo",
@@ -178,41 +158,21 @@ const resources = {
       apply: "Apply",
       category: "Category",
 
-      // Nhóm Áo Nam
-      group_tops: "Men's Tops",
-      tanktop: "Tanktop",
-      t_shirt: "T-Shirt",
-      sport_shirt: "Sport Shirt",
-      polo: "Polo",
-      shirt: "Shirt",
-      long_sleeve: "Long Sleeve",
-      sweater: "Sweater",
-      hoodie: "Hoodie",
-      jacket: "Jacket",
-      graphic_tshirt: "Graphic T-Shirt",
+      // Collections
+      group_collections: "Special Collections",
+      special_edition: "Special Edition",
+      luxury_collection: "Luxury Collection",
+      summer_edition: "Summer Edition",
+      unique_collection: "Unique Collection",
 
-      // Nhóm Quần Nam
-      group_bottoms: "Men's Bottoms",
-      short: "Shorts",
-      jogger: "Joggers",
-      sport_pants: "Sport Pants",
-      long_pants: "Long Pants",
-      pants: "Pants",
-      jeans: "Jeans",
-      khaki: "Khaki",
-      swimwear: "Swimwear",
-
-      // Nhóm Quần Lót
-      group_underwear: "Men's Underwear",
-      brief: "Briefs",
-      trunk: "Trunks",
-      boxer_brief: "Boxer Briefs",
-      long_leg: "Long Leg",
-      homewear: "Home Shorts",
-
-      // Phụ kiện
-      group_accessories: "Accessories",
-      all_accessories: "All Accessories",
+      // Colors
+      colors_label: "Colors",
+      color_black: "Black",
+      color_red: "Red",
+      color_blue: "Blue",
+      color_white: "White",
+      color_rose: "Rose",
+      color_green: "Green",
 
       // --- Sort keys ---
       sort_by: "Sort By",
