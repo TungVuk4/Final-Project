@@ -4,7 +4,7 @@ import { initReactI18next } from "react-i18next";
 const resources = {
   vi: {
     translation: {
-      // --- Topbar & Sidebar keys ---
+      // --- Topbar & Sidebar ---
       search: "Tìm kiếm...",
       search_placeholder: "Tìm kiếm sản phẩm...",
       home: "Trang chủ",
@@ -13,14 +13,42 @@ const resources = {
       roles: "Vai trò",
       product: "Sản phẩm",
       products_title: "Sản phẩm",
+      promotions: "Khuyến Mãi",
       login: "Đăng nhập",
 
-      // --- Profile Popover keys ---
+      // --- Dashboard ---
+      acc_revenue: "Doanh thu tích lũy",
+      desc_revenue: "Tổng doanh thu bán hàng",
+      acc_users: "Khách hàng đăng ký",
+      desc_users: "Thành viên trên hệ thống",
+      acc_orders: "Tổng đơn đặt hàng",
+      desc_orders: "Đơn mua thành công",
+      acc_reviews: "Lượt đánh giá",
+      desc_reviews: "Phản hồi người dùng",
+      welcome_back: "Chào mừng trở lại! 👋",
+      dashboard_desc: "Bảng điều khiển thống kê tổng quan của hệ thống.",
+      trending_categories: "Thể loại thịnh hành",
+      total_products: "TỔNG SP",
+      no_product_data: "Chưa có dữ liệu sản phẩm",
+      revenue_7_days: "Doanh thu 7 ngày qua",
+      revenue_stats_desc: "Thống kê doanh thu theo ngày",
+      no_recent_transactions: "Chưa có giao dịch nào gần đây",
+
+      // --- Notifications ---
+      notifications: "Thông báo",
+      notification_empty: "Không có thông báo nào",
+      notif_new_order: "Đơn hàng mới",
+      notif_new_review: "Đánh giá mới",
+      notif_admin_action: "Hoạt động Admin",
+      mark_all_read: "Đánh dấu đã đọc",
+      view_all: "Xem tất cả",
+
+      // --- Profile Popover ---
       profile: "Hồ sơ",
       settings: "Cài đặt",
       logout: "Đăng xuất",
 
-      // --- Product Page Actions & Modal ---
+      // --- Product Page ---
       new_product: "Thêm sản phẩm",
       add_product_title: "Thêm sản phẩm mới",
       edit_product_title: "Cập nhật sản phẩm",
@@ -31,16 +59,156 @@ const resources = {
       delete: "Xóa sản phẩm",
       cancel: "Hủy bỏ",
 
-      // --- User Page Keys (MỚI CẬP NHẬT) ---
+      // --- Promotions Page ---
+      promotions_title: "Khuyến Mãi",
+      promotions_sub: "Quản lý mã giảm giá và chiến dịch",
+      add_promotion: "Thêm khuyến mãi",
+      promo_code: "Mã giảm giá",
+      promo_discount: "Giá trị giảm",
+      promo_type: "Loại",
+      promo_start: "Ngày bắt đầu",
+      promo_end: "Ngày kết thúc",
+      promo_percent: "Phần trăm (%)",
+      promo_fixed: "Cố định ($)",
+      
+      promotions_title_big: "Quản Lý Khuyến Mãi",
+      promotions_desc_big: "Tạo và thiết lập chiến dịch Voucher siêu hấp dẫn",
+      create_campaign: "Tạo Chiến Dịch",
+      empty_promotions: "Chưa có chương trình khuyến mãi nào được tạo.",
+      ticket_code: "MÃ TICKET",
+      discount_percent: "MỨC GIẢM",
+      start_date: "NGÀY BẮT ĐẦU",
+      end_date: "NGÀY KẾT THÚC",
+      status: "TRẠNG THÁI",
+      actions: "THAO TÁC",
+
+      // --- Roles Page ---
+      roles_title: "Phân Quyền Quản Trị",
+      roles_sub: "Quản lý 3 cấp độ Admin và lịch sử hoạt động",
+      activity_log: "Lịch Sử Hoạt Động",
+      order_flow: "Luồng Đơn Hàng",
+      clear_all_logs: "Xóa tất cả",
+
+      // --- Roles Constants ---
+      role_admin1_title: "Admin Chính",
+      role_admin1_sub: "Toàn quyền kiểm soát hệ thống",
+      role_admin1_p1: "Xem & quản lý toàn bộ Dashboard",
+      role_admin1_p2: "Quản lý tất cả người dùng (CRUD)",
+      role_admin1_p3: "Quản lý & duyệt sản phẩm",
+      role_admin1_p4: "Toàn quyền quản lý chiến dịch Khuyến Mãi",
+      role_admin1_p5: "Duyệt đơn hàng do Admin 3 lên",
+      role_admin1_p6: "Phân quyền & quản lý Admin 2, Admin 3",
+      role_admin1_p7: "Xem báo cáo thống kê doanh thu",
+      role_admin1_p8: "Cấu hình hệ thống",
+      
+      role_admin2_title: "Admin Kho",
+      role_admin2_sub: "Quản lý sản phẩm & kho hàng",
+      role_admin2_p1: "Thêm sản phẩm mới vào kho",
+      role_admin2_p2: "Sửa thông tin, giá, ảnh sản phẩm",
+      role_admin2_p3: "Tạo chiến dịch mã Code & % Giảm",
+      role_admin2_p4: "Xóa sản phẩm (khi Admin 1 ra lệnh)",
+      role_admin2_p5: "Xem danh sách sản phẩm & tồn kho",
+      role_admin2_p6: "Xem thống kê kho hàng",
+      role_admin2_b1: "Quản lý người dùng",
+      role_admin2_b2: "Duyệt đơn hàng",
+      role_admin2_b3: "Phân quyền Admin",
+      role_admin2_b4: "Cấu hình hệ thống",
+      
+      role_admin3_title: "Admin Vận Hành",
+      role_admin3_sub: "Xử lý đơn hàng & chăm sóc khách hàng",
+      role_admin3_p1: "Nhận thông tin đặt hàng từ khách hàng",
+      role_admin3_p2: "Lên đơn hàng khi Admin 1 duyệt",
+      role_admin3_p3: "Xem thông tin khách hàng của đơn hàng",
+      role_admin3_p4: "Cập nhật trạng thái vận chuyển",
+      role_admin3_p5: "Xem lịch sử & danh sách đơn hàng",
+      role_admin3_b1: "Quản lý sản phẩm",
+      role_admin3_b2: "Quản lý Khuyến mãi",
+      role_admin3_b3: "Phân quyền Admin",
+      role_admin3_b4: "Xóa người dùng",
+      role_admin3_b5: "Cấu hình hệ thống",
+      
+      flow_step1_actor: "Khách hàng",
+      flow_step1_action: "Đặt hàng trên Web",
+      flow_step2_actor: "Admin Vận Hành",
+      flow_step2_action: "Lên đơn hàng",
+      flow_step3_actor: "Admin Chính",
+      flow_step3_action: "Duyệt / Từ chối đơn",
+      flow_step4_actor: "Admin Vận Hành",
+      flow_step4_action: "Giao hàng",
+      
+      role_admin1_exclusive: "Admin 1 có thể thực hiện MỌI quyền của Admin 2 và Admin 3",
+      reset_pw: "Reset MK",
+      lock_acc: "Khóa TK",
+      unlock_acc: "Mở Khóa",
+
+      // --- User Page ---
       user_management_sub: "Quản lý tài khoản và phân quyền hệ thống",
       user_table_name: "Người dùng",
+      search_user_placeholder: "Tìm Tên, Số Điện Thoại...",
+      users: "Người Dùng",
+      
+      // User Status & Detailed Strings
+      status_pending_admin: "Chờ duyệt",
+      status_processing: "Đang xử lý",
+      status_shipping: "Đang giao",
+      status_delivered: "Đã giao",
+      status_cancelled: "Đã hủy",
+      status_awaiting_payment: "Chờ thanh toán",
+      status_approved: "Đã duyệt",
+      delete_account_confirm: "Xác nhận xóa tài khoản",
+      delete_user_question: "Xóa tài khoản",
+      delete_warning: "Hành động này không thể hoàn tác.",
+      accept_label: "Xóa",
+      reject_label: "Hủy",
+      filter_all: "Tất cả",
+      filter_admin: "Admin",
+      filter_customer: "Khách hàng",
+      total_users: "Tổng người dùng",
+      admins_count: "Quản trị viên",
+      customers_count: "Khách hàng",
+      active_users_count: "Đang hoạt động",
+      no_users_found: "Không tìm thấy người dùng nào",
+      role_admin_badge: "Admin",
+      role_customer_badge: "Khách hàng",
+      created_at: "Tạo",
+      showing_users: "Hiển thị",
+      users_count_label: "người dùng",
+      personal_info: "Thông tin cá nhân",
+      phone_label: "Điện thoại",
+      not_provided: "Chưa cung cấp",
+      address_label: "Địa chỉ",
+      register_date_label: "Ngày đăng ký",
+      status_label: "Trạng thái",
+      active_status: "Đang hoạt động",
+      locked_status: "Đã khóa",
+      order_history: "Lịch sử đơn hàng",
+      no_orders: "Chưa có đơn hàng nào",
+      order_hash: "Đơn #",
+      products_count_label: "sản phẩm",
+      delete_this_account: "Xóa tài khoản này",
+
+      // --- Coupons Page ---
+      status_running: "Đang chạy",
+      status_stopped: "Đã Dừng/Hết Hạn",
+      discount_amount_label: "Mức giảm",
+      search_code_placeholder: "Tìm mã Code...",
+      edit_ticket: "✨ Cập Nhật Ticket",
+      new_ticket: "🎟 Tạo Ticket Mới",
+      cancel_btn: "Hủy Bỏ",
+      update_now_btn: "Cập Nhật Ngay",
+      publish_ticket_btn: "Phát Hành Ticket",
+      coupon_code_label: "🏷 Mã Coupon Đặc Biệt",
+      eg_megasale: "VD: MEGASALE",
+      discount_percent_label: "✂️ Số % Sẽ Giảm",
+      percent_sale: " % SALE",
+      start_label: "⏳ Khởi Đầu",
+      end_label: "🛑 Kết Thúc",
+      unlock_usage: "Mở Khóa Sử Dụng?",
+      turn_on_desc: "Bật công tắc để chiến dịch chạy ngay lập tức",
       user_table_role: "Vai trò",
       user_table_date: "Ngày tạo",
       user_table_status: "Trạng thái",
       user_table_action: "Hành động",
-      search_user_placeholder: "Tìm kiếm theo tên hoặc email...",
-
-      // Dialog Cập nhật
       update_user_header: "Chi tiết tài khoản",
       full_name_label: "HỌ VÀ TÊN",
       role_label: "VAI TRÒ",
@@ -48,18 +216,14 @@ const resources = {
       customer_role: "Khách hàng (Customer)",
       update_btn: "Cập nhật",
       close_btn: "Đóng",
-
-      // Xác nhận xóa
       confirm_delete_header: "Cảnh báo bảo mật",
-      confirm_delete_msg:
-        "Hành động này sẽ xóa vĩnh viễn tài khoản. Bạn có chắc chắn không?",
+      confirm_delete_msg: "Hành động này sẽ xóa vĩnh viễn tài khoản. Bạn có chắc chắn không?",
       bulk_delete_header: "Xác nhận xóa hàng loạt",
-      bulk_delete_msg:
-        "Bạn có chắc chắn muốn xóa {{count}} người dùng đã chọn?",
+      bulk_delete_msg: "Bạn có chắc chắn muốn xóa {{count}} người dùng đã chọn?",
       confirm_yes: "Xác nhận xóa",
       confirm_no: "Quay lại",
 
-      // --- Filter Sidebar keys ---
+      // --- Filter Sidebar ---
       filters: "Bộ lọc",
       gender: "Giới tính",
       men: "Nam",
@@ -68,14 +232,14 @@ const resources = {
       apply: "Áp dụng",
       category: "Danh mục sản phẩm",
 
-      // Nhóm Bộ sưu tập (Categories mới)
+      // Collections
       group_collections: "Bộ sưu tập đặc biệt",
       special_edition: "Special Edition",
       luxury_collection: "Luxury Collection",
       summer_edition: "Summer Edition",
       unique_collection: "Unique Collection",
 
-      // Màu sắc
+      // Colors
       colors_label: "Màu sắc",
       color_black: "Đen (Black)",
       color_red: "Đỏ (Red)",
@@ -84,7 +248,7 @@ const resources = {
       color_rose: "Hồng (Rose)",
       color_green: "Xanh lá (Green)",
 
-      // --- Sort keys ---
+      // Sort
       sort_by: "Sắp xếp theo",
       sort_featured: "Nổi bật",
       sort_newest: "Mới nhất",
@@ -94,7 +258,7 @@ const resources = {
   },
   en: {
     translation: {
-      // --- Topbar & Sidebar keys ---
+      // --- Topbar & Sidebar ---
       search: "Search...",
       search_placeholder: "Search product...",
       home: "Home",
@@ -103,14 +267,42 @@ const resources = {
       roles: "Roles",
       product: "Product",
       products_title: "Products",
+      promotions: "Promotions",
       login: "Sign in",
 
-      // --- Profile Popover keys ---
+      // --- Dashboard ---
+      acc_revenue: "Accumulated Revenue",
+      desc_revenue: "Total sales revenue",
+      acc_users: "Registered Customers",
+      desc_users: "System members",
+      acc_orders: "Total Orders",
+      desc_orders: "Successful orders",
+      acc_reviews: "Total Reviews",
+      desc_reviews: "User feedback",
+      welcome_back: "Welcome back! 👋",
+      dashboard_desc: "Overall system statistics dashboard.",
+      trending_categories: "Trending Categories",
+      total_products: "TOTAL PROD",
+      no_product_data: "No product data available",
+      revenue_7_days: "Revenue last 7 days",
+      revenue_stats_desc: "Daily revenue statistics",
+      no_recent_transactions: "No recent transactions",
+
+      // --- Notifications ---
+      notifications: "Notifications",
+      notification_empty: "No notifications yet",
+      notif_new_order: "New Order",
+      notif_new_review: "New Review",
+      notif_admin_action: "Admin Activity",
+      mark_all_read: "Mark all as read",
+      view_all: "View all",
+
+      // --- Profile Popover ---
       profile: "Profile",
       settings: "Settings",
       logout: "Logout",
 
-      // --- Product Page Actions & Modal ---
+      // --- Product Page ---
       new_product: "New Product",
       add_product_title: "Add New Product",
       edit_product_title: "Update Product",
@@ -121,16 +313,156 @@ const resources = {
       delete: "Delete",
       cancel: "Cancel",
 
-      // --- User Page Keys (NEW) ---
+      // --- Promotions Page ---
+      promotions_title: "Promotions",
+      promotions_sub: "Manage discount codes and campaigns",
+      add_promotion: "Add Promotion",
+      promo_code: "Discount Code",
+      promo_discount: "Discount Value",
+      promo_type: "Type",
+      promo_start: "Start Date",
+      promo_end: "End Date",
+      promo_percent: "Percentage (%)",
+      promo_fixed: "Fixed ($)",
+      
+      promotions_title_big: "Promotion Management",
+      promotions_desc_big: "Create and config attractive Voucher campaigns",
+      create_campaign: "Create Campaign",
+      empty_promotions: "No promotion campaigns created yet.",
+      ticket_code: "TICKET CODE",
+      discount_percent: "DISCOUNT",
+      start_date: "START DATE",
+      end_date: "END DATE",
+      status: "STATUS",
+      actions: "ACTIONS",
+
+      // --- Roles Page ---
+      roles_title: "Access Control",
+      roles_sub: "Manage 3 Admin levels and activity history",
+      activity_log: "Activity Log",
+      order_flow: "Order Flow",
+      clear_all_logs: "Clear all",
+
+      // --- Roles Constants ---
+      role_admin1_title: "Super Admin",
+      role_admin1_sub: "Full system control",
+      role_admin1_p1: "View & manage entire Dashboard",
+      role_admin1_p2: "Manage all users (CRUD)",
+      role_admin1_p3: "Manage & approve products",
+      role_admin1_p4: "Full control of Promotion campaigns",
+      role_admin1_p5: "Approve orders created by Admin 3",
+      role_admin1_p6: "Delegate & manage Admin 2, Admin 3",
+      role_admin1_p7: "View revenue statistics reports",
+      role_admin1_p8: "System configuration",
+      
+      role_admin2_title: "Inventory Admin",
+      role_admin2_sub: "Product & inventory management",
+      role_admin2_p1: "Add new products to inventory",
+      role_admin2_p2: "Edit product info, price, images",
+      role_admin2_p3: "Create Coupon & % Discount campaigns",
+      role_admin2_p4: "Delete products (upon Admin 1's request)",
+      role_admin2_p5: "View product list & inventory",
+      role_admin2_p6: "View inventory statistics",
+      role_admin2_b1: "User management",
+      role_admin2_b2: "Order approval",
+      role_admin2_b3: "Admin delegation",
+      role_admin2_b4: "System configuration",
+      
+      role_admin3_title: "Operations Admin",
+      role_admin3_sub: "Order processing & customer care",
+      role_admin3_p1: "Receive order info from customers",
+      role_admin3_p2: "Create orders pending Admin 1 approval",
+      role_admin3_p3: "View customer info for orders",
+      role_admin3_p4: "Update shipping status",
+      role_admin3_p5: "View order history & list",
+      role_admin3_b1: "Product management",
+      role_admin3_b2: "Promotion management",
+      role_admin3_b3: "Admin delegation",
+      role_admin3_b4: "Delete users",
+      role_admin3_b5: "System configuration",
+      
+      flow_step1_actor: "Customer",
+      flow_step1_action: "Place order on Web",
+      flow_step2_actor: "Ops Admin",
+      flow_step2_action: "Create order",
+      flow_step3_actor: "Super Admin",
+      flow_step3_action: "Approve / Reject order",
+      flow_step4_actor: "Ops Admin",
+      flow_step4_action: "Deliver via Shipping",
+      
+      role_admin1_exclusive: "Admin 1 can execute ALL permissions of Admin 2 and Admin 3",
+      reset_pw: "Reset PW",
+      lock_acc: "Lock Acc",
+      unlock_acc: "Unlock Acc",
+
+      // --- User Page ---
       user_management_sub: "System account and permission management",
       user_table_name: "User",
+      search_user_placeholder: "Search Name, Phone...",
+      users: "Users",
+      
+      // User Status & Detailed Strings
+      status_pending_admin: "Pending Approval",
+      status_processing: "Processing",
+      status_shipping: "Shipping",
+      status_delivered: "Delivered",
+      status_cancelled: "Cancelled",
+      status_awaiting_payment: "Awaiting Payment",
+      status_approved: "Approved",
+      delete_account_confirm: "Confirm Account Deletion",
+      delete_user_question: "Delete account",
+      delete_warning: "This action cannot be undone.",
+      accept_label: "Delete",
+      reject_label: "Cancel",
+      filter_all: "All",
+      filter_admin: "Admin",
+      filter_customer: "Customer",
+      total_users: "Total Users",
+      admins_count: "Administrators",
+      customers_count: "Customers",
+      active_users_count: "Active",
+      no_users_found: "No users found",
+      role_admin_badge: "Admin",
+      role_customer_badge: "Customer",
+      created_at: "Created",
+      showing_users: "Showing",
+      users_count_label: "users",
+      personal_info: "Personal Information",
+      phone_label: "Phone",
+      not_provided: "Not provided",
+      address_label: "Address",
+      register_date_label: "Register Date",
+      status_label: "Status",
+      active_status: "Active",
+      locked_status: "Locked",
+      order_history: "Order History",
+      no_orders: "No orders yet",
+      order_hash: "Order #",
+      products_count_label: "products",
+      delete_this_account: "Delete this account",
+
+      // --- Coupons Page ---
+      status_running: "Running",
+      status_stopped: "Stopped/Expired",
+      discount_amount_label: "Discount",
+      search_code_placeholder: "Search Code...",
+      edit_ticket: "✨ Update Ticket",
+      new_ticket: "🎟 New Ticket",
+      cancel_btn: "Cancel",
+      update_now_btn: "Update Now",
+      publish_ticket_btn: "Publish Ticket",
+      coupon_code_label: "🏷 Special Coupon Code",
+      eg_megasale: "E.g. MEGASALE",
+      discount_percent_label: "✂️ Discount Percentage",
+      percent_sale: " % SALE",
+      start_label: "⏳ Start Date",
+      end_label: "🛑 End Date",
+      unlock_usage: "Unlock Usage?",
+      turn_on_desc: "Toggle to activate the campaign immediately",
       user_table_role: "Role",
       user_table_date: "Created At",
       user_table_status: "Status",
       user_table_action: "Action",
-      search_user_placeholder: "Search by name or email...",
-
-      // Update Dialog
       update_user_header: "Account Details",
       full_name_label: "FULL NAME",
       role_label: "ROLE",
@@ -138,18 +470,14 @@ const resources = {
       customer_role: "Customer",
       update_btn: "Update",
       close_btn: "Close",
-
-      // Confirm Delete
       confirm_delete_header: "Security Warning",
-      confirm_delete_msg:
-        "This action will permanently delete the account. Are you sure?",
+      confirm_delete_msg: "This action will permanently delete the account. Are you sure?",
       bulk_delete_header: "Confirm Bulk Delete",
-      bulk_delete_msg:
-        "Are you sure you want to delete {{count}} selected users?",
+      bulk_delete_msg: "Are you sure you want to delete {{count}} selected users?",
       confirm_yes: "Confirm Delete",
       confirm_no: "Go Back",
 
-      // --- Filter Sidebar keys ---
+      // --- Filter Sidebar ---
       filters: "Filters",
       gender: "Gender",
       men: "Men",
@@ -174,7 +502,7 @@ const resources = {
       color_rose: "Rose",
       color_green: "Green",
 
-      // --- Sort keys ---
+      // Sort
       sort_by: "Sort By",
       sort_featured: "Featured",
       sort_newest: "Newest",

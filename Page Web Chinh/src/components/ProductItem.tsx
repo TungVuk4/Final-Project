@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { formatCategoryName } from "../utils/formatCategoryName";
+import { getImageUrl } from "../utils/formatImageUrl";
 
 const ProductItem = ({
   id,
@@ -24,7 +25,7 @@ const ProductItem = ({
         to={`/product/${id}`}
         className="w-full h-[300px] max-md:h-[200px] overflow-hidden"
       >
-        <img src={`/assets/${image}`} alt={title} />
+        <img src={getImageUrl(image)} alt={title} className="w-full h-full object-cover" />
       </Link>
       <Link
         to={`/product/${id}`}

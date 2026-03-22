@@ -6,6 +6,7 @@ interface Product {
   price: number;
   popularity: number;
   stock: number;
+  reviews?: any[];
 }
 
 interface ProductInCart extends Product {

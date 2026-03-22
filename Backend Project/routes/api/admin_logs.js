@@ -12,7 +12,7 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
       FROM admin_activity_logs al
       JOIN Users u ON al.AdminID = u.UserID
       ORDER BY al.Timestamp DESC
-      LIMIT 100
+      LIMIT 500
     `;
     const [rows] = await pool.query(sql);
     res.status(200).json({ success: true, data: rows });

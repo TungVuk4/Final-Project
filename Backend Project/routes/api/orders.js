@@ -132,6 +132,17 @@ router.post("/checkout", requireAuth, async (req, res) => {
     // 8. Xóa giỏ hàng (Cart_Items)
     await connection.query("DELETE FROM Cart_Items WHERE CartID = ?", [cartId]);
 
+    // 9. Trừ tồn kho và cảnh báo hết hàng
+    for (const item of cartItems) {
+      await connection.query('UPDATE Products SET Stock = Stock - ? WHERE ProductID = ?', [item.Quantity, item.ProductID]);
+      const [stockCheck] = await connection.query('SELECT ProductName, Stock FROM Products WHERE ProductID = ?', [item.ProductID]);
+      if (stockCheck[0] && stockCheck[0].Stock <= 0) {
+        await connection.query('INSERT INTO Notifications (Type, Message, ProductID) VALUES (?, ?, ?)', 
+          ['OUT_OF_STOCK', `Sản phẩm ${stockCheck[0].ProductName} đã hết hàng. Vui lòng nhập thêm!`, item.ProductID]
+        );
+      }
+    }
+
     await connection.commit();
 
     // 📧 Gửi email thông báo đến Admin Vận Hành (Admin 3) khi có đơn hàng mới
@@ -176,6 +187,106 @@ router.post("/checkout", requireAuth, async (req, res) => {
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("Lỗi khi checkout:", error);
+    res.status(500).json({ error: "Lỗi server" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+// ----------------------------------------------------------------
+// [GUEST] Đặt hàng không cần đăng nhập (Guest Checkout)
+// POST /api/orders/guest-checkout
+// ----------------------------------------------------------------
+router.post("/guest-checkout", async (req, res) => {
+  let connection;
+  const { ShippingAddress, PaymentMethod, CustomerName, CustomerEmail, CustomerPhone, cartItems } = req.body;
+
+  if (!ShippingAddress || !PaymentMethod || !cartItems || cartItems.length === 0 || !CustomerName || !CustomerPhone) {
+    return res.status(400).json({ message: "Vui lòng cung cấp đủ thông tin nhận hàng và giỏ hàng." });
+  }
+
+  const validMethods = ["COD", "MOMO", "BANK TRANSFER"];
+  if (!validMethods.includes(PaymentMethod.toUpperCase())) {
+    return res.status(400).json({ message: "Phương thức thanh toán không hợp lệ." });
+  }
+
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    let totalAmount = 0;
+    // Lấy thông tin giá hiện tại từ database để bảo mật
+    for (let i = 0; i < cartItems.length; i++) {
+      const [prodRows] = await connection.query('SELECT Price FROM Products WHERE ProductID = ?', [cartItems[i].ProductID]);
+      if (prodRows.length === 0) throw new Error(`Sản phẩm ${cartItems[i].ProductID} không tồn tại`);
+      cartItems[i].Price = prodRows[0].Price;
+      totalAmount += cartItems[i].Quantity * cartItems[i].Price;
+    }
+
+    let initialStatus = PaymentMethod.toUpperCase() === "COD" ? "PENDING_COD" : "AWAITING_PAYMENT";
+
+    // Format địa chỉ gom chung tên và SĐT
+    const finalAddress = `${CustomerName} - ${CustomerPhone} - ${ShippingAddress}`;
+
+    const [orderResult] = await connection.query(
+      `INSERT INTO Orders (UserID, TotalAmount, Status, ShippingAddress, PaymentMethod) VALUES (NULL, ?, ?, ?, ?)`,
+      [totalAmount, initialStatus, finalAddress, PaymentMethod]
+    );
+    const orderId = orderResult.insertId;
+
+    const orderDetailsValues = cartItems.map((item) => [
+      orderId, item.ProductID, item.Quantity, item.Price
+    ]);
+
+    await connection.query(
+      `INSERT INTO OrderDetails (OrderID, ProductID, Quantity, Price) VALUES ?`,
+      [orderDetailsValues]
+    );
+
+    // Trừ tồn kho và cảnh báo hết hàng
+    for (const item of cartItems) {
+      await connection.query('UPDATE Products SET Stock = Stock - ? WHERE ProductID = ?', [item.Quantity, item.ProductID]);
+      const [stockCheck] = await connection.query('SELECT ProductName, Stock FROM Products WHERE ProductID = ?', [item.ProductID]);
+      if (stockCheck[0] && stockCheck[0].Stock <= 0) {
+        await connection.query('INSERT INTO Notifications (Type, Message, ProductID) VALUES (?, ?, ?)', 
+          ['OUT_OF_STOCK', `Sản phẩm ${stockCheck[0].ProductName} đã hết hàng. Vui lòng nhập thêm!`, item.ProductID]
+        );
+      }
+    }
+
+    await connection.commit();
+
+    // 📧 Gửi email thông báo đơn mới (Cho Admin)
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: "admin3@fashionstyle.com",
+        subject: `[FashionStyle] ⚠️ Đơn hàng GUEST mới #${orderId}`,
+        html: `<p>Có đơn hàng mới từ Khách vãng lai: ${CustomerName} - ${CustomerPhone}</p><p>Tổng tiền: <b>${totalAmount.toLocaleString('vi-VN')} VNĐ</b></p><p>Địa chỉ: ${ShippingAddress}</p>`
+      });
+    } catch (e) { console.warn("Lỗi gửi mail GUEST to Admin", e.message); }
+
+    // Gửi email xác nhận cho Khách
+    if (CustomerEmail) {
+       try {
+         await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: CustomerEmail,
+            subject: `[FashionStyle] Xác nhận đặt hàng #${orderId}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
+                    <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
+                    <p>Xin chào ${CustomerName},</p>
+                    <p>Đơn hàng <b>#${orderId}</b> của bạn trị giá <b>${totalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. 
+                    Chúng tôi sẽ sớm liên hệ qua số điện thoại <b>${CustomerPhone}</b> để giao hàng đến địa chỉ <i>${ShippingAddress}</i>.</p>
+                   </div>`
+         });
+       } catch (e) { console.warn("Lỗi gửi mail GUEST to Khách", e.message); }
+    }
+
+    res.status(201).json({ success: true, message: "Đặt hàng thành công.", orderId, status: initialStatus });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Lỗi guest checkout:", error);
     res.status(500).json({ error: "Lỗi server" });
   } finally {
     if (connection) connection.release();
@@ -424,6 +535,31 @@ router.post("/pay", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Lỗi server khi thanh toán" });
   } finally {
     if (connection) connection.release();
+  }
+});
+
+// ----------------------------------------------------------------
+// [ADMIN 1 + 3] Lay lich su don hang cua 1 user cu the
+// GET /api/orders/admin/user/:userID
+// ----------------------------------------------------------------
+router.get('/admin/user/:userID', requireAuth, requireAdmin, async (req, res) => {
+  const { userID } = req.params;
+  try {
+    const [orders] = await pool.query(
+      `SELECT o.OrderID, o.TotalAmount, o.Status, o.PaymentMethod,
+              o.ShippingAddress, o.OrderDate as CreatedAt,
+              COUNT(od.ProductID) as itemCount
+       FROM orders o
+       LEFT JOIN orderdetails od ON o.OrderID = od.OrderID
+       WHERE o.UserID = ?
+       GROUP BY o.OrderID
+       ORDER BY o.OrderDate DESC`,
+      [userID]
+    );
+    res.status(200).json({ success: true, data: orders });
+  } catch (error) {
+    console.error('Loi lay orders theo user:', error.message);
+    res.status(500).json({ error: 'Loi server: ' + error.message });
   }
 });
 module.exports = router;

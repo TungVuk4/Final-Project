@@ -30,21 +30,9 @@ const ProductGridWrapper = ({
   // Memoize the function to prevent unnecessary re-renders
   // getSearchedProducts will be called only when searchQuery or sortCriteria changes
   const getSearchedProducts = useCallback(
-    async (query: string, sort: string, page: number) => {
-      if (!query || query.length === 0) {
-        query = "";
-      }
-      const response = await customFetch("/products");
-      const allProducts = await response.data;
-      let searchedProducts = allProducts.filter((product: Product) =>
-        product.title.toLowerCase().includes(query.toLowerCase())
-      );
-
-      if (category) {
-        searchedProducts = searchedProducts.filter((product: Product) => {
-          return product.category === category;
-        });
-      }
+    async (query: string, sort: string, _page: number) => {
+      const response = await customFetch(`/products?category=${category || ""}&query=${query || ""}`);
+      let searchedProducts = await response.data;
 
       if (totalProducts !== searchedProducts.length) {
         dispatch(setTotalProducts(searchedProducts.length));
@@ -91,7 +79,7 @@ const ProductGridWrapper = ({
 
   useEffect(() => {
     getSearchedProducts(searchQuery || "", sortCriteria || "", page || 1);
-  }, [searchQuery, sortCriteria, page]);
+  }, [searchQuery, sortCriteria, page, category]);
 
   // Clone the children and pass the products as props to the children
   // This will cause the children to re-render with the new products

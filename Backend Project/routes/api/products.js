@@ -66,17 +66,36 @@ router.get("/search", async (req, res) => {
 // GET /api/products
 // ----------------------------------------------------------------
 router.get("/", async (req, res) => {
+  const { category, query } = req.query;
   try {
-    // Chỉ lấy các trường cơ bản cho danh sách
-    const sql = `
-            SELECT p.ProductID, p.ProductName, p.Price, p.StockQuantity, p.DiscountPercent, c.CategoryName
+    let sql = `
+            SELECT 
+              p.ProductID as id, 
+              p.ProductName as title, 
+              p.Price as price, 
+              p.StockQuantity as stock, 
+              c.CategoryName as category,
+              0 as popularity,
+              IFNULL((SELECT FileName FROM Image WHERE ProductID = p.ProductID LIMIT 1), 'default.jpg') as image
             FROM Products p
             LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
-            WHERE p.StockQuantity > 0 
-            LIMIT 10
+            WHERE 1=1
         `;
-    const [rows] = await pool.query(sql);
-    res.status(200).json({ success: true, data: rows });
+    const params = [];
+
+    if (category) {
+      // So khớp slug: Chuyển 'Special Edition' -> 'special-edition' để so với query
+      sql += " AND LOWER(REPLACE(c.CategoryName, ' ', '-')) = ? ";
+      params.push(category.toLowerCase());
+    }
+
+    if (query) {
+      sql += " AND (p.ProductName LIKE ? OR p.Description LIKE ?) ";
+      params.push(`%${query}%`, `%${query}%`);
+    }
+
+    const [rows] = await pool.query(sql, params);
+    res.status(200).json(rows); 
   } catch (error) {
     console.error("Lỗi khi lấy danh sách sản phẩm:", error);
     res.status(500).json({ error: "Lỗi server khi lấy dữ liệu" });
@@ -169,7 +188,15 @@ router.get("/:id", async (req, res) => {
   try {
     // 1. Lấy thông tin cơ bản
     const [productRows] = await pool.query(
-      `SELECT p.*, c.CategoryName 
+      `SELECT 
+              p.ProductID as id, 
+              p.ProductName as title, 
+              p.Price as price, 
+              p.StockQuantity as stock, 
+              c.CategoryName as category,
+              p.Description as description,
+              0 as popularity,
+              IFNULL((SELECT FileName FROM Image WHERE ProductID = p.ProductID LIMIT 1), 'default.jpg') as image
              FROM Products p 
              LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
              WHERE p.ProductID = ?`,
@@ -189,7 +216,7 @@ router.get("/:id", async (req, res) => {
       [productID]
     );
 
-    // 3. Lấy hình ảnh
+    // 3. Lấy hình ảnh (Trả về mảng tên file chuỗi)
     const [imageRows] = await pool.query(
       `SELECT FileName FROM Image WHERE ProductID = ?`,
       [productID]
@@ -197,9 +224,9 @@ router.get("/:id", async (req, res) => {
 
     // 4. Lấy đánh giá (chỉ 5 cái gần nhất)
     const [reviewRows] = await pool.query(
-      `SELECT u.FullName, r.Rating, r.Comment, r.CreatedAt 
+      `SELECT u.FullName, r.GuestName, r.Rating, r.Comment, r.CreatedAt 
              FROM Reviews r 
-             JOIN Users u ON r.UserID = u.UserID 
+             LEFT JOIN Users u ON r.UserID = u.UserID 
              WHERE r.ProductID = ? 
              ORDER BY r.CreatedAt DESC LIMIT 5`,
       [productID]
@@ -207,9 +234,14 @@ router.get("/:id", async (req, res) => {
 
     product.sizes = sizeRows;
     product.images = imageRows.map((img) => img.FileName);
-    product.reviews = reviewRows;
+    product.reviews = reviewRows.map(r => ({
+      author: r.FullName || r.GuestName || 'Khách',
+      rating: r.Rating,
+      comment: r.Comment,
+      date: r.CreatedAt
+    }));
 
-    return res.status(200).json({ success: true, data: product });
+    return res.status(200).json(product); // Trả Object trực tiếp
   } catch (error) {
     console.error("Lỗi khi lấy chi tiết sản phẩm:", error);
     return res.status(500).json({ error: "Lỗi server khi lấy dữ liệu" });

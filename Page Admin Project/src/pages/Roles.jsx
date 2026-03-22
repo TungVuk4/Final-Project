@@ -27,6 +27,7 @@ import {
 } from "react-icons/ri";
 import { InputSwitch } from "primereact/inputswitch";
 import { useAuthStore } from "../stores/auth";
+import { useTranslation } from "react-i18next";
 import axios from "axios";
 
 const API_URL = "http://localhost:8080/api";
@@ -34,11 +35,11 @@ const API_URL = "http://localhost:8080/api";
 // ---------------------------------------------------------------
 // Dữ liệu cấu hình 3 tài khoản Admin cố định
 // ---------------------------------------------------------------
-const ADMIN_ROLES = [
+const getAdminRoles = (t) => [
   {
     id: 1,
-    title: "Admin Chính",
-    subtitle: "Toàn quyền kiểm soát hệ thống",
+    title: t("role_admin1_title", "Admin Chính"),
+    subtitle: t("role_admin1_sub", "Toàn quyền kiểm soát hệ thống"),
     email: "admin1@fashionstyle.com",
     color: "from-violet-600 to-purple-700",
     lightColor: "bg-violet-50 dark:bg-violet-900/20",
@@ -47,21 +48,21 @@ const ADMIN_ROLES = [
     icon: <RiShieldStarFill size={28} />,
     badge: "LEVEL 1",
     permissions: [
-      { icon: <RiCheckboxCircleFill />, label: "Xem & quản lý toàn bộ Dashboard" },
-      { icon: <RiUser3Fill />, label: "Quản lý tất cả người dùng (CRUD)" },
-      { icon: <RiStore2Fill />, label: "Quản lý & duyệt sản phẩm" },
-      { icon: <RiPriceTag3Fill />, label: "Toàn quyền quản lý chiến dịch Khuyến Mãi" },
-      { icon: <RiTruckFill />, label: "Duyệt đơn hàng do Admin 3 lên" },
-      { icon: <RiShieldUserFill />, label: "Phân quyền & quản lý Admin 2, Admin 3" },
-      { icon: <RiBarChartBoxFill />, label: "Xem báo cáo thống kê doanh thu" },
-      { icon: <RiSettings4Fill />, label: "Cấu hình hệ thống" },
+      { icon: <RiCheckboxCircleFill />, label: t("role_admin1_p1", "Xem & quản lý toàn bộ Dashboard") },
+      { icon: <RiUser3Fill />, label: t("role_admin1_p2", "Quản lý tất cả người dùng (CRUD)") },
+      { icon: <RiStore2Fill />, label: t("role_admin1_p3", "Quản lý & duyệt sản phẩm") },
+      { icon: <RiPriceTag3Fill />, label: t("role_admin1_p4", "Toàn quyền quản lý chiến dịch Khuyến Mãi") },
+      { icon: <RiTruckFill />, label: t("role_admin1_p5", "Duyệt đơn hàng do Admin 3 lên") },
+      { icon: <RiShieldUserFill />, label: t("role_admin1_p6", "Phân quyền & quản lý Admin 2, Admin 3") },
+      { icon: <RiBarChartBoxFill />, label: t("role_admin1_p7", "Xem báo cáo thống kê doanh thu") },
+      { icon: <RiSettings4Fill />, label: t("role_admin1_p8", "Cấu hình hệ thống") },
     ],
     blocked: [],
   },
   {
     id: 2,
-    title: "Admin Kho",
-    subtitle: "Quản lý sản phẩm & kho hàng",
+    title: t("role_admin2_title", "Admin Kho"),
+    subtitle: t("role_admin2_sub", "Quản lý sản phẩm & kho hàng"),
     email: "admin2@fashionstyle.com",
     color: "from-cyan-500 to-blue-600",
     lightColor: "bg-cyan-50 dark:bg-cyan-900/20",
@@ -70,24 +71,24 @@ const ADMIN_ROLES = [
     icon: <RiStore2Fill size={28} />,
     badge: "LEVEL 2",
     permissions: [
-      { icon: <RiAddCircleFill />, label: "Thêm sản phẩm mới vào kho" },
-      { icon: <RiEditFill />, label: "Sửa thông tin, giá, ảnh sản phẩm" },
-      { icon: <RiPriceTag3Fill />, label: "Tạo chiến dịch mã Code & % Giảm" },
-      { icon: <RiDeleteBinFill />, label: "Xóa sản phẩm (khi Admin 1 ra lệnh)" },
-      { icon: <RiStore2Fill />, label: "Xem danh sách sản phẩm & tồn kho" },
-      { icon: <RiBarChartBoxFill />, label: "Xem thống kê kho hàng" },
+      { icon: <RiAddCircleFill />, label: t("role_admin2_p1", "Thêm sản phẩm mới vào kho") },
+      { icon: <RiEditFill />, label: t("role_admin2_p2", "Sửa thông tin, giá, ảnh sản phẩm") },
+      { icon: <RiPriceTag3Fill />, label: t("role_admin2_p3", "Tạo chiến dịch mã Code & % Giảm") },
+      { icon: <RiDeleteBinFill />, label: t("role_admin2_p4", "Xóa sản phẩm (khi Admin 1 ra lệnh)") },
+      { icon: <RiStore2Fill />, label: t("role_admin2_p5", "Xem danh sách sản phẩm & tồn kho") },
+      { icon: <RiBarChartBoxFill />, label: t("role_admin2_p6", "Xem thống kê kho hàng") },
     ],
     blocked: [
-      "Quản lý người dùng",
-      "Duyệt đơn hàng",
-      "Phân quyền Admin",
-      "Cấu hình hệ thống",
+      t("role_admin2_b1", "Quản lý người dùng"),
+      t("role_admin2_b2", "Duyệt đơn hàng"),
+      t("role_admin2_b3", "Phân quyền Admin"),
+      t("role_admin2_b4", "Cấu hình hệ thống"),
     ],
   },
   {
     id: 3,
-    title: "Admin Vận Hành",
-    subtitle: "Xử lý đơn hàng & chăm sóc khách hàng",
+    title: t("role_admin3_title", "Admin Vận Hành"),
+    subtitle: t("role_admin3_sub", "Xử lý đơn hàng & chăm sóc khách hàng"),
     email: "admin3@fashionstyle.com",
     color: "from-emerald-500 to-teal-600",
     lightColor: "bg-emerald-50 dark:bg-emerald-900/20",
@@ -96,18 +97,18 @@ const ADMIN_ROLES = [
     icon: <RiTruckFill size={28} />,
     badge: "LEVEL 3",
     permissions: [
-      { icon: <RiMailFill />, label: "Nhận thông tin đặt hàng từ khách hàng" },
-      { icon: <RiCheckDoubleFill />, label: "Lên đơn hàng khi Admin 1 duyệt" },
-      { icon: <RiUser3Fill />, label: "Xem thông tin khách hàng của đơn hàng" },
-      { icon: <RiTimeFill />, label: "Cập nhật trạng thái vận chuyển" },
-      { icon: <RiTruckFill />, label: "Xem lịch sử & danh sách đơn hàng" },
+      { icon: <RiMailFill />, label: t("role_admin3_p1", "Nhận thông tin đặt hàng từ khách hàng") },
+      { icon: <RiCheckDoubleFill />, label: t("role_admin3_p2", "Lên đơn hàng khi Admin 1 duyệt") },
+      { icon: <RiUser3Fill />, label: t("role_admin3_p3", "Xem thông tin khách hàng của đơn hàng") },
+      { icon: <RiTimeFill />, label: t("role_admin3_p4", "Cập nhật trạng thái vận chuyển") },
+      { icon: <RiTruckFill />, label: t("role_admin3_p5", "Xem lịch sử & danh sách đơn hàng") },
     ],
     blocked: [
-      "Quản lý sản phẩm",
-      "Quản lý Khuyến mãi",
-      "Phân quyền Admin",
-      "Xóa người dùng",
-      "Cấu hình hệ thống",
+      t("role_admin3_b1", "Quản lý sản phẩm"),
+      t("role_admin3_b2", "Quản lý Khuyến mãi"),
+      t("role_admin3_b3", "Phân quyền Admin"),
+      t("role_admin3_b4", "Xóa người dùng"),
+      t("role_admin3_b5", "Cấu hình hệ thống"),
     ],
   },
 ];
@@ -115,17 +116,17 @@ const ADMIN_ROLES = [
 // ---------------------------------------------------------------
 // Luồng phê duyệt đơn hàng (flow diagram)
 // ---------------------------------------------------------------
-const ORDER_FLOW = [
-  { step: 1, actor: "Khách hàng", action: "Đặt hàng trên Web", icon: <RiUser3Fill size={20} />, color: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300" },
-  { step: 2, actor: "Admin Vận Hành", action: "Lên đơn hàng", icon: <RiTruckFill size={20} />, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  { step: 3, actor: "Admin Chính", action: "Duyệt / Từ chối đơn", icon: <RiShieldStarFill size={20} />, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" },
-  { step: 4, actor: "Admin Vận Hành", action: "Giao hàng", icon: <RiTruckFill size={20} />, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+const getOrderFlow = (t) => [
+  { step: 1, actor: t("flow_step1_actor", "Khách hàng"), action: t("flow_step1_action", "Đặt hàng trên Web"), icon: <RiUser3Fill size={20} />, color: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300" },
+  { step: 2, actor: t("flow_step2_actor", "Admin Vận Hành"), action: t("flow_step2_action", "Lên đơn hàng"), icon: <RiTruckFill size={20} />, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  { step: 3, actor: t("flow_step3_actor", "Admin Chính"), action: t("flow_step3_action", "Duyệt / Từ chối đơn"), icon: <RiShieldStarFill size={20} />, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" },
+  { step: 4, actor: t("flow_step4_actor", "Admin Vận Hành"), action: t("flow_step4_action", "Giao hàng"), icon: <RiTruckFill size={20} />, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
 ];
 
 // ---------------------------------------------------------------
 // Component Card cho mỗi Admin Role
 // ---------------------------------------------------------------
-function RoleCard({ role, isActive = true, onLock, onReset }) {
+function RoleCard({ role, isActive = true, onLock, onReset, t }) {
   const currentEmail = useAuthStore((state) => state.user?.email);
   const isOnline = currentEmail === role.email;
 
@@ -208,7 +209,7 @@ function RoleCard({ role, isActive = true, onLock, onReset }) {
           <div className={`mt-auto ${role.lightColor} rounded-2xl px-5 py-4 border ${role.borderColor}`}>
             <p className={`text-xs text-center font-bold ${role.textColor} flex flex-col items-center gap-2`}>
               <RiShieldStarFill size={20} />
-              Admin 1 có thể thực hiện MỌI quyền của Admin 2 và Admin 3
+              {t("role_admin1_exclusive", "Admin 1 có thể thực hiện MỌI quyền của Admin 2 và Admin 3")}
             </p>
           </div>
         )}
@@ -220,7 +221,7 @@ function RoleCard({ role, isActive = true, onLock, onReset }) {
               className="flex-1 bg-violet-50 hover:bg-violet-600 text-violet-600 hover:text-white font-bold py-2.5 rounded-xl transition-all duration-300 text-xs flex items-center justify-center gap-2 border border-violet-100 hover:shadow-[0_4px_10px_rgba(124,58,237,0.3)]"
               onClick={() => onReset()}
             >
-              <RiLockPasswordFill size={16} /> Reset MK
+              <RiLockPasswordFill size={16} /> {t("reset_pw", "Reset MK")}
             </button>
             <button 
               className={`flex-1 font-bold py-2.5 rounded-xl transition-all duration-300 text-xs flex items-center justify-center gap-2 border ${
@@ -230,7 +231,7 @@ function RoleCard({ role, isActive = true, onLock, onReset }) {
               }`}
               onClick={() => onLock(isActive)}
             >
-              {isActive ? <><RiCloseCircleFill size={16} /> Khóa TK</> : <><RiCheckboxCircleFill size={16} /> Mở Khóa</>}
+              {isActive ? <><RiCloseCircleFill size={16} /> {t("lock_acc", "Khóa TK")}</> : <><RiCheckboxCircleFill size={16} /> {t("unlock_acc", "Mở Khóa")}</>}
             </button>
           </div>
         )}
@@ -243,6 +244,8 @@ function RoleCard({ role, isActive = true, onLock, onReset }) {
 // Component chính: Trang Roles
 // ---------------------------------------------------------------
 export default function Roles() {
+  const { t } = useTranslation();
+  
   const [searchLog, setSearchLog] = useState("");
   const activityLog = useAuthStore((state) => state.activityLog); // Vẫn giữ để fallback hoặc dùng local nếu cần
   const currentEmail = useAuthStore((state) => state.user?.email);
@@ -430,15 +433,16 @@ export default function Roles() {
         </div>
       </div>
 
-      {/* 3 Role Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {ADMIN_ROLES.map((role) => (
+      {/* Giao diện 3 Admin Roles */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        {getAdminRoles(t).map((role) => (
           <RoleCard 
             key={role.id} 
             role={role} 
             isActive={role.id === 1 ? true : adminIsActive[role.id]}
             onLock={(currentIsActive) => handleLockAccount(role.email, currentIsActive)}
             onReset={() => handleResetPassword(role.email)}
+            t={t}
           />
         ))}
       </div>
@@ -481,7 +485,7 @@ export default function Roles() {
             {filteredLogs.length > 0 ? (
               <div className="flex flex-col">
                 {filteredLogs.map((log) => {
-                  const roleData = ADMIN_ROLES.find(r => r.email === log.email);
+                  const roleData = getAdminRoles(t).find(r => r.email === log.email);
                   const dt = new Date(log.time);
                   const timeString = dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                   const dateString = dt.toLocaleDateString('vi-VN');
@@ -539,10 +543,10 @@ export default function Roles() {
           </div>
           
           <div className="mt-8 flex flex-col gap-4 flex-1">
-            {ORDER_FLOW.map((step, idx) => (
+            {getOrderFlow(t).map((step, idx) => (
               <div key={step.step} className="flex relative">
                 {/* Timeline line */}
-                {idx < ORDER_FLOW.length - 1 && (
+                {idx < getOrderFlow(t).length - 1 && (
                   <div className="absolute left-5 top-10 bottom-[-16px] w-[2px] bg-gray-100 dark:bg-gray-800"></div>
                 )}
                 

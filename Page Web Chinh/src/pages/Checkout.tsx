@@ -6,6 +6,7 @@ import customFetch from "../axios/custom";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { checkCheckoutFormData } from "../utils/checkCheckoutFormData";
+import { getImageUrl } from "../utils/formatImageUrl";
 
 /*
 address: "Marka Markovic 22"
@@ -50,30 +51,31 @@ const Checkout = () => {
 
     if (!checkCheckoutFormData(checkoutData)) return;
 
-    let response;
-    if (JSON.parse(localStorage.getItem("user") || "{}").email) {
-      response = await customFetch.post("/orders", {
-        ...checkoutData,
-        user: {
-          email: JSON.parse(localStorage.getItem("user") || "{}").email,
-          id: JSON.parse(localStorage.getItem("user") || "{}").id,
-        },
-        orderStatus: "Processing",
-        orderDate: new Date().toISOString(),
-      });
-    } else {
-      response = await customFetch.post("/orders", {
-        ...checkoutData,
-        orderStatus: "Processing",
-        orderDate: new Date().toLocaleDateString(),
-      });
-    }
+    // Chuẩn bị payload tương thích Backend Node.js
+    const payload = {
+      CustomerName: `${data.firstName} ${data.lastName}`,
+      CustomerEmail: data.emailAddress,
+      CustomerPhone: data.phone,
+      ShippingAddress: `${data.address}, ${data.apartment ? data.apartment + ', ' : ''}${data.city}, ${data.region}`,
+      PaymentMethod: 'COD', // Mặc định do Form hiện tại chỉ có option mô hình
+      cartItems: productsInCart.map(p => ({
+         ProductID: parseInt(p.id), // Extract ID số từ string "12xsred"
+         Quantity: p.quantity,
+         Price: p.price
+      }))
+    };
 
-    if (response.status === 201) {
-      toast.success("Order has been placed successfully");
-      navigate("/order-confirmation");
-    } else {
+    try {
+      // Vì React code dùng Redux thay vì Carts DB, ta sẽ dùng guest-checkout cho linh hoạt
+      const response = await customFetch.post("/orders/guest-checkout", payload);
+      
+      if (response.status === 201) {
+        toast.success("Order has been placed successfully");
+        navigate("/order-confirmation");
+      }
+    } catch (error) {
       toast.error("Something went wrong, please try again later");
+      console.error(error);
     }
   };
 
@@ -439,7 +441,7 @@ const Checkout = () => {
                   <li key={product?.id} className="flex px-4 py-6 sm:px-6">
                     <div className="flex-shrink-0">
                       <img
-                        src={`/assets/${product?.image}`}
+                        src={getImageUrl(product?.image)}
                         alt={product?.title}
                         className="w-20 rounded-md"
                       />
@@ -518,7 +520,7 @@ const Checkout = () => {
               </dl>
 
               <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-                <Button text="Confirm Order" mode="brown" />
+                <Button text="Confirm Order" type="submit" mode="brown" />
               </div>
             </div>
           </div>

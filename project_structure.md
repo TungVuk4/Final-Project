@@ -66,14 +66,16 @@ Backend Project/
 ├── routes/
 │   └── api/                # Định nghĩa API endpoints
 │       ├── auth-temp.js    # Đăng ký, Đăng nhập, OTP, quên mật khẩu (vô hạn cho Admin)
-│       ├── products.js     # CRUD sản phẩm, lọc theo ColorID/CategoryID, khoảng giá min-max
+│       ├── products.js     # CRUD sản phẩm, lọc Color/Cat/Price (min-max), POST /upload-image (Multer), GET firstImage
 │       ├── categories.js   # CRUD danh mục sản phẩm (4 Bộ sưu tập Collection)
 │       ├── colors.js       # 🆕 Quản lý bảng màu (BLACK, RED, BLUE, WHITE, ROSE, GREEN)
 │       ├── admin_logs.js   # 🆕 Nhật ký hoạt động của 3 Admin (CRUD Logs)
 │       ├── cart.js         # Giỏ hàng (thêm/xóa/cập nhật)
 │       ├── orders.js       # Đặt hàng, lịch sử, cập nhật trạng thái
 │       ├── promotions.js   # Quản lý mã giảm giá (Admin Level 2)
-│       ├── stats.js        # Báo cáo doanh thu, thống kê
+│       ├── stats.js        # Thống kê doanh thu, tồn kho, và API cho Dashboard (overview/charts)
+│       ├── reviews.js      # 🆕 Quản lý đánh giá (Hỗ trợ Guest & User)
+│       ├── notifications.js# 🆕 API thông báo hệ thống (chuông báo Topbar)
 │       └── user.js         # Hồ sơ người dùng, phân quyền CanDeleteProduct, IsActive
 ├── uploads/                # Thư mục lưu ảnh sản phẩm được upload
 └── daemon/                 # Windows Service runner (WinSW)
@@ -86,14 +88,14 @@ Backend Project/
 | Nhóm | Prefix | Mô tả | Bảo vệ |
 |---|---|---|---|
 | Auth | `/api/auth-temp` | Đăng ký, đăng nhập, OTP, quên mật khẩu | Public |
-| Sản phẩm | `/api/products` | Xem danh sách, tìm kiếm, CRUD (Filter Color/Cat/Price) | Public / Admin |
+| Sản phẩm | `/api/products` | CRUD, lọc Color/Cat/Price, `POST /upload-image` (upload ảnh) | Public / Admin |
 | Danh mục | `/api/categories` | 4 Bộ sưu tập chính (Luxury, Special, Summer, Unique) | Public / Admin |
 | Màu sắc | `/api/colors` | 🆕 6 màu cơ bản (BLACK, RED, BLUE...) | Public / Admin |
 | Giỏ hàng | `/api/cart` | Thêm/xóa/cập nhật giỏ hàng | Customer Token |
 | Đơn hàng | `/api/orders` | Đặt hàng, lịch sử, trạng thái | Customer/Admin Token |
 | Nhật ký | `/api/admin_logs` | 🆕 Ghi lại mọi hành động của Admin | Admin Level 1 |
-| Người dùng | `/api/user` | Hồ sơ, đổi mật khẩu, Reset MK, Khóa TK | Customer Token |
-| Khuyến mãi | `/api/promotions` | Quản lý mã giảm giá | Admin Level 2 |
+| Thông báo | `/api/notifications` | 🆕 Cảnh báo Hết hàng (OUT_OF_STOCK) & Admin Logs | Admin Token |
+| Đánh giá | `/api/reviews` | 🆕 Lấy danh sách & Gửi review (Guest/User) | Public |
 | Thống kê | `/api/stats` | Báo cáo doanh thu / tồn kho | Admin Token |
 
 ### Thư viện chính
@@ -236,15 +238,17 @@ Page Web Chinh/
     │   ├── UserProfile.tsx
     │   ├── Search.tsx
     │   └── HomeLayout.tsx      # Layout khung (Header + Footer)
-    └── utils/              # 8 Utility functions
+    └── utils/              # 10 Utility functions
         ├── checkCheckoutFormData.ts
         ├── checkLoginFormData.ts
         ├── checkRegisterFormData.ts
         ├── checkUserProfileFormData.ts
         ├── formatCategoryName.ts
+        ├── formatImageUrl.ts    # 🆕 Xử lý Link ảnh Local Assets vs Server Uploads
         ├── formatDate.ts
         ├── withNumberInputWrapper.tsx
-        └── withSelectInputWrapper.tsx
+        ├── withSelectInputWrapper.tsx
+        └── formatCurrency.ts
 ```
 
 ### Luồng dữ liệu
@@ -313,7 +317,7 @@ Page Admin Project/
     │   └── UserPopover.jsx # Popover thông tin user + nút Logout
     └── pages/              # Các trang quản trị
         ├── Dashboard.jsx       # Trang tổng quan & thống kê doanh thu
-        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors (Filter Price)
+        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh + Dark 3D Glass UI
         ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct)
         ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin Level 2)
         ├── Roles.jsx           # Quản lý phân quyền + Sơ đồ luồng + 🆕 Nhật ký (Logs)
@@ -329,7 +333,7 @@ Page Admin Project/
 |---|:---:|:---:|:---:|
 | Bảng điều khiển (Dashboard) | ✅ | ❌ | ❌ |
 | Người dùng | ✅ | ❌ | ❌ |
-| **Sản phẩm** (thêm/sửa/xóa) | ✅ | ✅ | ❌ |
+| **Sản phẩm** (thêm/sửa + xem + upload ảnh) | ✅ | ✅ | ❌ |
 | **Khuyến Mãi** (Mã code, % Sale) | ✅ | ✅ | ❌ |
 | **Đơn hàng** (xem + lên đơn) | ✅ | ❌ | ✅ |
 | **Duyệt đơn hàng** | ✅ | ❌ | ❌ |
@@ -533,4 +537,4 @@ npm run dev
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 20/03/2026*
+*📅 Tài liệu được cập nhật ngày: 20/03/2026 — Cuối buổi làm việc*

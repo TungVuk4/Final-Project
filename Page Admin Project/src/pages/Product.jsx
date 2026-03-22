@@ -88,6 +88,15 @@ export default function Product() {
     }
   };
 
+  // Ghi nhật ký hoạt động sau mỗi thao tác quan trọng
+  const logAction = async (action, details) => {
+    try {
+      await axios.post(`${API_URL}/admin-logs`, { action, details }, config);
+    } catch (err) {
+      console.warn("Ghi log thất bại (không ảnh hưởng chức năng):", err.message);
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -141,8 +150,16 @@ export default function Product() {
       };
       if (isEdit) {
         await axios.put(`${API_URL}/products/${product.id}`, payload, config);
+        await logAction(
+          "Cập nhật sản phẩm",
+          `Đã sửa sản phẩm "${product.name}" (ID: ${product.id}) — Giá: $${product.price}`
+        );
       } else {
-        await axios.post(`${API_URL}/products`, payload, config);
+        const res2 = await axios.post(`${API_URL}/products`, payload, config);
+        await logAction(
+          "Thêm sản phẩm mới",
+          `Đã thêm sản phẩm mới "${product.name}" — Giá: $${product.price}, Danh mục ID: ${product.category}`
+        );
       }
       setProductDialog(false);
       setUploadPreview(null);
@@ -161,6 +178,10 @@ export default function Product() {
     try {
       setLoading(true);
       await axios.delete(`${API_URL}/products/${product.id}`, config);
+      await logAction(
+        "Xóa sản phẩm",
+        `Đã xóa sản phẩm "${product.name}" (ID: ${product.id})`
+      );
       setProductDialog(false);
       fetchProducts();
     } catch (err) {

@@ -35,6 +35,8 @@ const statsRoutes = require("./routes/api/stats");
 const userRoutes = require("./routes/api/user");
 const adminLogsRoutes = require("./routes/api/admin_logs");
 const colorsRoutes = require("./routes/api/colors");
+const notificationsRoutes = require("./routes/api/notifications");
+const reviewsRoutes = require("./routes/api/reviews");
 
 // =======================================================
 // --- ĐỊNH TUYẾN API (ROUTES) ---
@@ -44,6 +46,7 @@ const colorsRoutes = require("./routes/api/colors");
 app.use("/api/auth-temp", authRoutes); // Đăng ký, Đăng nhập, OTP
 app.use("/api/categories", categoryRoutes); // Xem danh mục
 app.use("/api/products", productRoutes); // Xem sản phẩm, Tìm kiếm
+app.use("/api/reviews", reviewsRoutes); // Xem, gửi đánh giá sản phẩm
 
 // 2. Nhóm Thành viên (Cần Token Customer/Admin)
 app.use("/api/cart", cartRoutes); // Giỏ hàng cá nhân
@@ -55,6 +58,7 @@ app.use("/api/promotions", promotionRoutes); // Quản lý mã giảm giá
 app.use("/api/stats", statsRoutes); // Báo cáo doanh thu, tồn kho
 app.use("/api/admin-logs", adminLogsRoutes); // Quản lý Lịch sử HĐ Admin
 app.use("/api/colors", colorsRoutes); // Quản lý Màu sắc sản phẩm
+app.use("/api/notifications", notificationsRoutes); // Thông báo tổng hợp (Orders, Reviews, Admin)
 
 // =======================================================
 
