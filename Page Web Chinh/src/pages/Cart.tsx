@@ -1,213 +1,223 @@
-import {
-  HiCheck as CheckIcon,
-  HiXMark as XMarkIcon,
-  HiQuestionMarkCircle as QuestionMarkCircleIcon,
-} from "react-icons/hi2";
-import { useAppDispatch, useAppSelector } from "../hooks";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../hooks";
 import {
   removeProductFromTheCart,
   updateProductQuantity,
+  addProductToTheCart,
 } from "../features/cart/cartSlice";
+import { getAuthToken } from "../features/auth/authSlice";
+import customFetch from "../axios/custom";
 import toast from "react-hot-toast";
 import { getImageUrl } from "../utils/formatImageUrl";
 
 const Cart = () => {
   const { productsInCart, subtotal } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
+  const token = getAuthToken();
+
+  // Load cart từ Backend khi đã đăng nhập
+  useEffect(() => {
+    const loadCartFromServer = async () => {
+      if (!token) return;
+      try {
+        const res = await customFetch.get("/cart", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const items = res.data?.items || res.data || [];
+        items.forEach((item: any) => {
+          dispatch(addProductToTheCart({
+            id: String(item.ProductID),
+            title: item.ProductName || item.name,
+            price: Number(item.Price || item.price),
+            image: item.FileName || item.image || "default.jpg",
+            quantity: item.Quantity || 1,
+            stock: item.StockQuantity || 1,
+            size: item.NameSize || item.size || "",
+            color: item.ColorName || item.color || "",
+            popularity: 0,
+            category: "",
+          }));
+        });
+      } catch {
+        // Không cần toast, fallback về Redux local
+      }
+    };
+    loadCartFromServer();
+  }, []);
+
+  const handleRemove = async (id: string) => {
+    dispatch(removeProductFromTheCart({ id }));
+    toast.error("Đã xóa khỏi giỏ hàng");
+    if (token) {
+      try {
+        await customFetch.delete(`/cart/item/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch { /* silent */ }
+    }
+  };
+
+
+  const handleUpdateQuantity = async (id: string, quantity: number) => {
+    if (quantity < 1) return;
+    dispatch(updateProductQuantity({ id, quantity }));
+    if (token) {
+      try {
+        await customFetch.put(`/cart/item/${id}`, { Quantity: quantity }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch { /* silent */ }
+    }
+  };
 
   return (
-    <div className="bg-white mx-auto max-w-screen-2xl px-5 max-[400px]:px-3">
-      <div className="pb-24 pt-16">
-        <h1 className="text-3xl tracking-tight text-gray-900 sm:text-4xl">
-          Shopping Cart
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 px-4 py-10">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-3xl font-light tracking-wide text-stone-800 mb-8">
+          Giỏ hàng của bạn
+          <span className="ml-3 text-lg text-stone-400 font-normal">
+            ({productsInCart.length} sản phẩm)
+          </span>
         </h1>
-        <form className="mt-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 xl:gap-x-16">
-          <section aria-labelledby="cart-heading" className="lg:col-span-7">
-            <h2 id="cart-heading" className="sr-only">
-              Items in your shopping cart
-            </h2>
 
-            <ul
-              role="list"
-              className="divide-y divide-gray-200 border-b border-t border-gray-200"
+        {productsInCart.length === 0 ? (
+          /* Empty Cart */
+          <div className="bg-white rounded-2xl shadow-lg p-16 text-center">
+            <div className="text-7xl mb-4">🛒</div>
+            <h2 className="text-xl font-medium text-stone-700 mb-2">Giỏ hàng đang trống</h2>
+            <p className="text-stone-500 mb-8">Thêm sản phẩm vào giỏ để bắt đầu mua sắm nhé!</p>
+            <Link
+              to="/shop"
+              className="inline-block bg-stone-800 text-white px-8 py-3 rounded-lg hover:bg-stone-900 transition-colors font-medium"
             >
+              Khám phá sản phẩm
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Cart Items */}
+            <div className="lg:col-span-2 flex flex-col gap-4">
               {productsInCart.map((product) => (
-                <li key={product.id} className="flex py-6 sm:py-10">
-                  <div className="flex-shrink-0">
+                <div key={product.id} className="bg-white rounded-2xl shadow-md p-4 flex gap-4 hover:shadow-lg transition-shadow">
+                  {/* Image */}
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 rounded-xl overflow-hidden bg-stone-100">
                     <img
                       src={getImageUrl(product.image)}
                       alt={product.title}
-                      className="h-24 w-24 object-cover object-center sm:h-48 sm:w-48"
+                      className="w-full h-full object-cover object-center"
                     />
                   </div>
 
-                  <div className="ml-4 flex flex-1 flex-col justify-between sm:ml-6">
-                    <div className="relative pr-9 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:pr-0">
-                      <div>
-                        <div className="flex justify-between">
-                          <h3 className="text-sm">
-                            <Link
-                              to={`/product/${product.id}`}
-                              className="font-medium text-gray-700 hover:text-gray-800"
-                            >
-                              {product.title}
-                            </Link>
-                          </h3>
+                  {/* Info */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <Link
+                          to={`/product/${product.id}`}
+                          className="font-medium text-stone-800 hover:text-stone-600 transition-colors truncate block"
+                        >
+                          {product.title}
+                        </Link>
+                        <div className="flex gap-3 mt-1 flex-wrap">
+                          {product.color && (
+                            <span className="text-xs text-stone-500 bg-stone-100 rounded px-2 py-0.5">{product.color}</span>
+                          )}
+                          {product.size && (
+                            <span className="text-xs text-stone-500 bg-stone-100 rounded px-2 py-0.5">Size: {product.size}</span>
+                          )}
                         </div>
-                        <div className="mt-1 flex text-sm">
-                          <p className="text-gray-500">{product.color}</p>
-                          {product.size ? (
-                            <p className="ml-4 border-l border-gray-200 pl-4 text-gray-500">
-                              {product.size}
-                            </p>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-sm font-medium text-gray-900">
-                          ${product.price}
-                        </p>
+                        {/* Stock indicator */}
+                        {product.stock > 0 ? (
+                          <span className="text-xs text-green-600 mt-1 block">✓ Còn hàng</span>
+                        ) : (
+                          <span className="text-xs text-red-500 mt-1 block">✗ Hết hàng</span>
+                        )}
                       </div>
-
-                      <div className="mt-4 sm:mt-0 sm:pr-9">
-                        <label htmlFor="quantity mr-5">Quantity: </label>
-                        <input
-                          type="number"
-                          id="quantity"
-                          className="w-16 h-7 indent-1 bg-white border"
-                          value={product?.quantity}
-                          onChange={(e) => {
-                            dispatch(
-                              updateProductQuantity({
-                                id: product?.id,
-                                quantity: parseInt(e.target.value),
-                              })
-                            );
-                          }}
-                        />
-
-                        <div className="absolute right-0 top-0">
-                          <button
-                            type="button"
-                            className="-m-2 inline-flex p-2 text-gray-400 hover:text-gray-500"
-                            onClick={() =>{
-                              dispatch(
-                                removeProductFromTheCart({ id: product?.id })
-                              ); toast.error("Product removed from the cart");}
-                            }
-                          >
-                            <span className="sr-only">Remove</span>
-                            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                        </div>
-                      </div>
+                      {/* Remove button */}
+                      <button
+                        onClick={() => handleRemove(product.id)}
+                        className="text-stone-400 hover:text-red-500 transition-colors flex-shrink-0 p-1"
+                        title="Xóa"
+                      >
+                        ✕
+                      </button>
                     </div>
 
-                    <p className="mt-4 flex space-x-2 text-sm text-gray-700">
-                      {product?.stock ? (
-                        <CheckIcon
-                          className="h-5 w-5 flex-shrink-0 text-green-500"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <XMarkIcon
-                          className="h-5 w-5 flex-shrink-0 text-red-600"
-                          aria-hidden="true"
-                        />
-                      )}
-
-                      <span>
-                        {product?.stock ? "In stock" : `Out of stock`}
+                    <div className="flex items-center justify-between mt-2">
+                      {/* Quantity control */}
+                      <div className="flex items-center border border-stone-300 rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => handleUpdateQuantity(product.id, product.quantity - 1)}
+                          className="px-3 py-1.5 text-stone-600 hover:bg-stone-100 transition-colors text-lg leading-none"
+                        >
+                          −
+                        </button>
+                        <span className="px-3 py-1.5 text-sm font-medium text-stone-800 min-w-[2rem] text-center">
+                          {product.quantity}
+                        </span>
+                        <button
+                          onClick={() => handleUpdateQuantity(product.id, product.quantity + 1)}
+                          className="px-3 py-1.5 text-stone-600 hover:bg-stone-100 transition-colors text-lg leading-none"
+                        >
+                          +
+                        </button>
+                      </div>
+                      {/* Price */}
+                      <span className="font-semibold text-stone-800">
+                        ${(product.price * product.quantity).toFixed(2)}
                       </span>
-                    </p>
+                    </div>
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
-          </section>
+            </div>
 
-          {/* Order summary */}
-          <section
-            aria-labelledby="summary-heading"
-            className="mt-16 bg-gray-50 px-4 py-6 sm:p-6 lg:col-span-5 lg:mt-0 lg:p-8"
-          >
-            <h2
-              id="summary-heading"
-              className="text-lg font-medium text-gray-900"
-            >
-              Order summary
-            </h2>
+            {/* Order Summary (Sticky) */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
+                <h2 className="text-lg font-semibold text-stone-800 mb-5">Tóm tắt đơn hàng</h2>
 
-            <dl className="mt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <dt className="text-sm text-gray-600">Subtotal</dt>
-                <dd className="text-sm font-medium text-gray-900">
-                  ${subtotal}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                <dt className="flex items-center text-sm text-gray-600">
-                  <span>Shipping estimate</span>
-                  <a
-                    href="#"
-                    className="ml-2 flex-shrink-0 text-gray-400 hover:text-gray-500"
-                  >
-                    <span className="sr-only">
-                      Learn more about how shipping is calculated
-                    </span>
-                    <QuestionMarkCircleIcon
-                      className="h-5 w-5 text-secondaryBrown"
-                      aria-hidden="true"
-                    />
-                  </a>
-                </dt>
-                <dd className="text-sm font-medium text-gray-900">
-                  ${subtotal === 0 ? 0 : 5.0}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                <dt className="flex text-sm text-gray-600">
-                  <span>Tax estimate</span>
-                  <a
-                    href="#"
-                    className="ml-2 flex-shrink-0 text-gray-400 hover:text-gray-500"
-                  >
-                    <span className="sr-only">
-                      Learn more about how tax is calculated
-                    </span>
-                    <QuestionMarkCircleIcon
-                      className="h-5 w-5 text-secondaryBrown"
-                      aria-hidden="true"
-                    />
-                  </a>
-                </dt>
-                <dd className="text-sm font-medium text-gray-900">
-                  ${subtotal / 5}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                <dt className="text-base font-medium text-gray-900">
-                  Order total
-                </dt>
-                <dd className="text-base font-medium text-gray-900">
-                  ${subtotal === 0 ? 0 : subtotal + subtotal / 5 + 5}
-                </dd>
-              </div>
-            </dl>
+                <div className="flex flex-col gap-3 text-sm">
+                  <div className="flex justify-between text-stone-600">
+                    <span>Tạm tính</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-stone-600">
+                    <span>Phí vận chuyển</span>
+                    <span className="text-green-600">{subtotal === 0 ? "$0" : "Miễn phí"}</span>
+                  </div>
+                  <div className="border-t border-stone-200 pt-3 flex justify-between font-semibold text-stone-800 text-base">
+                    <span>Tổng cộng</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                </div>
 
-            {productsInCart.length > 0 && (
-              <div className="mt-6">
                 <Link
                   to="/checkout"
-                  className="text-white bg-secondaryBrown text-center text-xl font-normal tracking-[0.6px] leading-[72px] w-full h-12 flex items-center justify-center max-md:text-base"
+                  className="mt-6 block w-full bg-stone-800 hover:bg-stone-900 text-white text-center font-medium py-3 rounded-lg transition-colors"
                 >
-                  Checkout
+                  Tiến hành thanh toán →
                 </Link>
+                <Link
+                  to="/shop"
+                  className="mt-3 block w-full text-center text-sm text-stone-500 hover:text-stone-700 transition-colors"
+                >
+                  ← Tiếp tục mua sắm
+                </Link>
+
+                {!token && (
+                  <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                    💡 <Link to="/login" className="underline font-medium">Đăng nhập</Link> để lưu giỏ hàng và nhận ưu đãi
+                  </div>
+                )}
               </div>
-            )}
-          </section>
-        </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
 export default Cart;

@@ -22,6 +22,26 @@ router.get("/profile", requireAuth, async (req, res) => {
   }
 });
 
+// ----------------------------------------------------------------
+// [CUSTOMER] Cập nhật hồ sơ cá nhân (Họ tên, SĐT, Địa chỉ)
+// PUT /api/user/profile
+// ----------------------------------------------------------------
+router.put("/profile", requireAuth, async (req, res) => {
+  const userId = req.user.userId;
+  const { FullName, PhoneNumber, Address } = req.body;
+  if (!FullName) return res.status(400).json({ message: "Họ tên không được để trống." });
+  try {
+    await pool.query(
+      "UPDATE Users SET FullName = ?, PhoneNumber = ?, Address = ? WHERE UserID = ?",
+      [FullName, PhoneNumber || null, Address || null, userId]
+    );
+    res.status(200).json({ success: true, message: "Cập nhật hồ sơ thành công." });
+  } catch (error) {
+    res.status(500).json({ error: "Lỗi server khi cập nhật hồ sơ" });
+  }
+});
+
+
 // ================================================================
 //               CHỨC NĂNG DÀNH CHO ADMIN
 // ================================================================

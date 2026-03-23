@@ -1,94 +1,144 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "../components";
-import { checkLoginFormData } from "../utils/checkLoginFormData";
+import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2";
 import customFetch from "../axios/custom";
 import toast from "react-hot-toast";
-import { useEffect } from "react";
-import { setLoginStatus } from "../features/auth/authSlice";
+import { useEffect, useState } from "react";
+import { setUserInfo } from "../features/auth/authSlice";
 import { store } from "../store";
 
 const Login = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Get form data
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData);
-    // Check if form data is valid
-    if (!checkLoginFormData(data)) return;
-    
-    // Check if user with the email and password exists
-    const users = await customFetch.get("/users");
-    let userId: number = 0; // Initialize userId with a default value
-    const userExists = users.data.some(
-      (user: { id: number; email: string; password: string }) => {
-        if (user.email === data.email) {
-          userId = user.id;
-        }
-        return user.email === data.email && user.password === data.password;
-      }
-    );
-    
-    // if user exists, show success message
-    if (userExists) {
-      toast.success("You logged in successfully");
-      localStorage.setItem("user", JSON.stringify({...data, id: userId}));
-      store.dispatch(setLoginStatus(true));
-      navigate("/user-profile");
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    if (!email || !password) {
+      toast.error("Vui lòng nhập đầy đủ email và mật khẩu");
       return;
-    } else {
-      toast.error("Please enter correct email and password");
+    }
+
+    setLoading(true);
+    try {
+      const res = await customFetch.post("/auth-temp/login", {
+        Email: email,
+        Password: password,
+      });
+
+      const { token, user } = res.data;
+
+      store.dispatch(setUserInfo({
+        userId: user.UserID,
+        email: user.Email,
+        fullName: user.FullName,
+        role: user.Role,
+        token,
+      }));
+
+      toast.success(`Chào mừng trở lại, ${user.FullName}!`);
+      navigate("/user-profile");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Email hoặc mật khẩu không đúng";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (user) {
-      toast.success("You are already logged in");
+    const raw = localStorage.getItem("fashionUser");
+    if (raw) {
       navigate("/user-profile");
     }
   }, [navigate]);
 
   return (
-    <div className="max-w-screen-2xl mx-auto pt-24 flex items-center justify-center">
-      <form
-        onSubmit={handleLogin}
-        className="max-w-5xl mx-auto flex flex-col gap-5 max-sm:gap-3 items-center justify-center max-sm:px-5"
-      >
-        <h2 className="text-5xl text-center mb-5 font-thin max-md:text-4xl max-sm:text-3xl max-[450px]:text-xl max-[450px]:font-normal">
-          Welcome Back! Login here:
-        </h2>
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="name">Your email</label>
-            <input
-              type="email"
-              className="bg-white border border-black text-xl py-2 px-3 w-full outline-none max-[450px]:text-base"
-              placeholder="Enter email address"
-              name="email"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 px-4">
+      <div className="w-full max-w-md">
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-xl px-8 py-10 sm:px-10">
+          {/* Logo/Brand */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-light tracking-widest text-stone-800 uppercase">Fashion</h1>
+            <p className="text-stone-500 mt-2 text-sm">Đăng nhập vào tài khoản của bạn</p>
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="name">Your password</label>
-            <input
-              type="password"
-              className="bg-white border border-black text-xl py-2 px-3 w-full outline-none max-[450px]:text-base"
-              placeholder="Enter password"
-              name="password"
-            />
+
+          <form onSubmit={handleLogin} className="flex flex-col gap-5">
+            {/* Email */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-stone-700" htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                placeholder="name@example.com"
+                autoComplete="email"
+                className="border border-stone-300 rounded-lg px-4 py-3 text-base outline-none transition-all
+                           focus:border-stone-600 focus:ring-2 focus:ring-stone-200 placeholder:text-stone-400"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-stone-700" htmlFor="password">Mật khẩu</label>
+                <Link to="/forgot-password" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+                  Quên mật khẩu?
+                </Link>
+              </div>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPass ? "text" : "password"}
+                  name="password"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  className="border border-stone-300 rounded-lg px-4 py-3 text-base outline-none transition-all w-full
+                             focus:border-stone-600 focus:ring-2 focus:ring-stone-200 placeholder:text-stone-400 pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-400 hover:text-stone-600 transition-colors"
+                >
+                  {showPass ? <HiOutlineEyeSlash className="text-xl" /> : <HiOutlineEye className="text-xl" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 bg-stone-800 hover:bg-stone-900 text-white font-medium py-3 px-6 rounded-lg
+                         transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed
+                         focus:outline-none focus:ring-2 focus:ring-stone-600 focus:ring-offset-2"
+            >
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-stone-200"></div>
+            <span className="text-stone-400 text-sm">hoặc</span>
+            <div className="flex-1 h-px bg-stone-200"></div>
           </div>
+
+          <p className="text-center text-sm text-stone-600">
+            Chưa có tài khoản?{" "}
+            <Link to="/register" className="font-medium text-stone-800 hover:underline">
+              Đăng ký ngay
+            </Link>
+          </p>
         </div>
-        <Button type="submit" text="Login" mode="brown" />
-        <Link
-          to="/register"
-          className="text-xl max-md:text-lg max-[450px]:text-sm"
-        >
-          Don’t have an account?{" "}
-          <span className="text-secondaryBrown">Register now</span>.
-        </Link>
-      </form>
+      </div>
     </div>
   );
 };
+
 export default Login;

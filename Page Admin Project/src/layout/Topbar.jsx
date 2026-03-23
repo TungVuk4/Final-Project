@@ -91,12 +91,12 @@ export default function Topbar({ isMobile, onToggle, collapsed }) {
         <div className="px-2 py-1">
           <button
             onClick={() => i18n.changeLanguage("en")}
-            className={`w-full flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all group ${
-              i18n.language === "en" ? "bg-blue-50 dark:bg-blue-900/20" : ""
+            className={`w-full flex items-center px-3 py-2.5 hover:bg-gray-100 rounded-xl transition-all group ${
+              i18n.language === "en" ? "bg-blue-50" : ""
             }`}
           >
             <span className="w-6 h-4 mr-3 text-lg">🇺🇸</span>
-            <span className={`text-sm font-semibold ${i18n.language === "en" ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"}`}>
+            <span className={`text-sm font-semibold ${i18n.language === "en" ? "text-blue-600" : "text-gray-700"}`}>
               English
             </span>
             {i18n.language === "en" && <i className="pi pi-check ml-auto text-blue-500 text-xs" />}
@@ -110,12 +110,12 @@ export default function Topbar({ isMobile, onToggle, collapsed }) {
         <div className="px-2 py-1">
           <button
             onClick={() => i18n.changeLanguage("vi")}
-            className={`w-full flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all group ${
-              i18n.language === "vi" ? "bg-blue-50 dark:bg-blue-900/20" : ""
+            className={`w-full flex items-center px-3 py-2.5 hover:bg-gray-100 rounded-xl transition-all group ${
+              i18n.language === "vi" ? "bg-blue-50" : ""
             }`}
           >
             <span className="w-6 h-4 mr-3 text-lg">🇻🇳</span>
-            <span className={`text-sm font-semibold ${i18n.language === "vi" ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-300"}`}>
+            <span className={`text-sm font-semibold ${i18n.language === "vi" ? "text-blue-600" : "text-gray-700"}`}>
               Tiếng Việt
             </span>
             {i18n.language === "vi" && <i className="pi pi-check ml-auto text-blue-500 text-xs" />}
@@ -126,12 +126,12 @@ export default function Topbar({ isMobile, onToggle, collapsed }) {
   ];
 
   return (
-    <header className="h-16 bg-white/80 dark:bg-[#1C252E]/90 backdrop-blur-md border-b border-gray-200/70 dark:border-gray-700/50 flex items-center justify-between px-4 sticky top-0 z-50 transition-colors shadow-sm">
+    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200/70 flex items-center justify-between px-4 sticky top-0 z-50 transition-colors shadow-sm">
       {/* Left — Toggle menu */}
       <div className="flex items-center">
         <button
           onClick={onToggle}
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-all"
         >
           {toggleIcon}
         </button>
@@ -144,11 +144,11 @@ export default function Topbar({ isMobile, onToggle, collapsed }) {
           model={languageItems}
           popup
           ref={langMenu}
-          className="w-52 border border-gray-100 dark:border-gray-700 shadow-2xl rounded-2xl p-1.5 overflow-hidden mt-2 bg-white dark:bg-[#212B36]"
+          className="w-52 border border-gray-100 shadow-2xl rounded-2xl p-1.5 overflow-hidden mt-2 bg-white"
         />
         <button
           onClick={(e) => langMenu.current.toggle(e)}
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-all"
           title={i18n.language === "vi" ? "Tiếng Việt" : "English"}
         >
           <span className="text-lg">{i18n.language === "vi" ? "🇻🇳" : "🇺🇸"}</span>
@@ -158,11 +158,11 @@ export default function Topbar({ isMobile, onToggle, collapsed }) {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => { setShowNotif(!showNotif); if (!showNotif) fetchNotifications(); }}
-            className="relative w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+            className="relative w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-all"
           >
             <i className="pi pi-bell text-lg" />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white dark:border-[#1C252E] animate-pulse">
+              <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-white animate-pulse">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
@@ -255,7 +255,7 @@ export default function Topbar({ isMobile, onToggle, collapsed }) {
         </div>
 
         {/* Divider + User */}
-        <div className="ml-1 pl-2 border-l border-gray-200 dark:border-gray-700 flex items-center">
+        <div className="ml-1 pl-2 border-l border-gray-200 flex items-center">
           <UserPopover />
         </div>
       </div>

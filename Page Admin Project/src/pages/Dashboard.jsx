@@ -33,34 +33,50 @@ export default function Dashboard() {
   
   const [pieData, setPieData] = useState([]);
   const [barData, setBarData] = useState([]);
+  const [adminLogs, setAdminLogs] = useState([]); // New state for admin logs
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const loadData = async () => {
       try {
+        setLoading(true);
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        // Gộp 2 request để tải nhanh hơn
-        const [resStats, resCharts] = await Promise.all([
+        const [ovRes, chRes, logRes] = await Promise.all([
           axios.get(`${API_URL}/stats/dashboard/overview`, config),
-          axios.get(`${API_URL}/stats/dashboard/charts`, config)
+          axios.get(`${API_URL}/stats/dashboard/charts`, config),
+          axios.get(`${API_URL}/admin-logs`, config) // Fetch admin logs
         ]);
-
-        if (resStats.data?.success) {
-          setStats(resStats.data.data);
+        
+        if (ovRes.data?.success) {
+          setStats(ovRes.data.data);
         }
-        if (resCharts.data?.success) {
-          setPieData(resCharts.data.data.pieChart || []);
-          setBarData(resCharts.data.data.barChart || []);
+        if (chRes.data?.success) {
+          setPieData(chRes.data.data.pieChart || []);
+          setBarData(chRes.data.data.barChart || []);
         }
-      } catch (err) {
-        console.error("Lỗi lấy dữ liệu Dashboard:", err);
+        if (logRes.data?.success) {
+          setAdminLogs(logRes.data.data.slice(0, 10)); // Only take the 10 most recent logs
+        }
+      } catch (error) {
+        console.error("Lỗi load dashboard:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardData();
+    loadData();
   }, [token]);
+
+  const getActionCfg = (action) => {
+    const types = {
+      APPROVE_ORDER: { icon: "pi-check-circle", color: "text-emerald-500", bg: "bg-emerald-50" },
+      REJECT_ORDER: { icon: "pi-times-circle", color: "text-red-500", bg: "bg-red-50" },
+      UPDATE_STATUS: { icon: "pi-sync", color: "text-blue-500", bg: "bg-blue-50" },
+      DELETE_ORDER: { icon: "pi-trash", color: "text-rose-500", bg: "bg-rose-50" },
+      DEFAULT: { icon: "pi-info-circle", color: "text-slate-500", bg: "bg-slate-50" }
+    };
+    return types[action] || types.DEFAULT;
+  };
 
   // Cấu hình Biểu đồ Tròn (Doanh số theo danh mục)
   const pieChartConfig = {
@@ -142,8 +158,13 @@ export default function Dashboard() {
     animation: { duration: 1500, easing: 'easeOutQuart' }
   };
 
-  // Dữ liệu UI cho 4 thẻ Widget
-  const widgets = [
+  const currentUser = useAuthStore((state) => state.user);
+  const isOpsAdmin = currentUser?.email === "admin3@fashionstyle.com";
+  const isProductAdmin = currentUser?.email === "admin2@fashionstyle.com";
+  const isAdmin1 = currentUser?.email === "admin1@fashionstyle.com";
+
+  // Dữ liệu UI cho 4 thẻ Widget (Cá nhân hóa theo Role)
+  let widgets = [
     {
       title: t("acc_revenue", "Doanh thu tích lũy"),
       value: formatCurrency(stats.totalRevenue),
@@ -174,96 +195,272 @@ export default function Dashboard() {
     }
   ];
 
+  if (isAdmin1) {
+    widgets = widgets.filter(w => w.title !== t("acc_orders", "Tổng đơn đặt hàng"));
+  }
+
+  if (isOpsAdmin) {
+    widgets = [
+      {
+        title: "Đơn hàng mới",
+        value: stats.pendingOrders > 0 ? (stats.pendingOrders > 2 ? "2+" : stats.pendingOrders) : "0",
+        desc: "Cần xác nhận ngay",
+        icon: "pi-bell",
+        iconBg: "bg-gradient-to-br from-orange-400 to-red-500 shadow-red-500/40"
+      },
+      {
+        title: "Đang vận chuyển",
+        value: formatNumber(stats.shippingOrders),
+        desc: "Đơn hàng trên đường đi",
+        icon: "pi-truck",
+        iconBg: "bg-gradient-to-br from-blue-400 to-indigo-600 shadow-indigo-500/40"
+      },
+      {
+        title: "Khách hàng của tôi",
+        value: formatNumber(stats.totalUsers),
+        desc: "Tổng khách hàng",
+        icon: "pi-user",
+        iconBg: "bg-gradient-to-br from-teal-400 to-emerald-600 shadow-emerald-500/40"
+      },
+      {
+        title: "Đã hoàn thành",
+        value: formatNumber(stats.completedOrders),
+        desc: "Đơn hàng thành công",
+        icon: "pi-check-circle",
+        iconBg: "bg-gradient-to-br from-cyan-400 to-blue-500 shadow-blue-500/40"
+      }
+    ];
+  }
+
   return (
-    <div className="space-y-8 font-sans pb-10">
+    <div className="space-y-8 font-inter pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
             {t("welcome_back", "Chào mừng trở lại! 👋")}
           </h1>
-          <p className="text-gray-500 mt-2 text-sm font-medium">{t("dashboard_desc", "Bảng điều khiển thống kê tổng quan của hệ thống.")}</p>
+          <p className="text-gray-500 mt-2 text-sm font-medium">
+             {isOpsAdmin ? "Hệ thống vận hành đơn hàng FashionStyle." : t("dashboard_desc", "Bảng điều khiển thống kê tổng quan của hệ thống.")}
+          </p>
         </div>
       </div>
 
-      {/* Grid 4 thẻ thống kê siêu xịn xò */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} width="100%" height="7rem" borderRadius="1.5rem" className="!bg-gray-200" />
-          ))
-        ) : (
-          widgets.map((w, index) => (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-lg border border-gray-100 flex items-center justify-between group transition-all duration-300"
-            >
-              <div>
-                <p className="text-gray-500 font-medium text-sm mb-1">{w.title}</p>
-                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{w.value}</h3>
+      {isOpsAdmin && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+           {/* Card Admin Vận Hành - Phong cách Premium như ảnh mẫu */}
+           <div className="lg:col-span-4 rounded-[2rem] overflow-hidden shadow-2xl shadow-emerald-500/10 border border-emerald-100 flex flex-col">
+              <div className="bg-gradient-to-br from-[#00A76F] to-[#007B55] p-8 text-white relative overflow-hidden">
+                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                 <div className="absolute top-2 right-4 flex items-center gap-1.5 px-3 py-1 bg-black/20 rounded-full backdrop-blur-md">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase">ONLINE</span>
+                 </div>
+                 
+                 <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 shadow-inner">
+                    <i className="pi pi-truck text-3xl"></i>
+                 </div>
+                 
+                 <div className="mb-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-white/10 text-[10px] font-black tracking-tighter backdrop-blur-md">LEVEL 3</span>
+                    <h2 className="text-2xl font-black mt-2 leading-tight">Admin Vận Hành</h2>
+                 </div>
+                 <p className="text-emerald-50/80 text-sm font-medium">Xử lý đơn hàng & chăm sóc khách...</p>
+                 
+                 <div className="mt-8 flex items-center gap-3 p-3 bg-black/20 rounded-2xl backdrop-blur-md border border-white/10">
+                    <i className="pi pi-envelope text-emerald-200"></i>
+                    <span className="text-sm font-bold truncate">admin3@fashionstyle.com</span>
+                 </div>
               </div>
-              <div className={`w-14 h-14 rounded-[1rem] flex items-center justify-center text-white text-2xl shadow-lg group-hover:-translate-y-1 transition-transform duration-300 ${w.iconBg}`}>
-                <i className={`pi ${w.icon}`} />
+              
+              <div className="bg-white p-8 flex-1">
+                 <div className="space-y-6">
+                    <div>
+                       <h3 className="text-xs font-black text-emerald-600 uppercase tracking-[2px] mb-4 flex items-center gap-2">
+                          <i className="pi pi-check-circle"></i> QUYỀN HẠN
+                       </h3>
+                       <ul className="space-y-4">
+                          {[
+                             { icon: 'pi-bell', text: 'Nhận thông tin đặt hàng từ khách hàng' },
+                             { icon: 'pi-send', text: 'Lên đơn hàng khi Admin 1 duyệt' },
+                             { icon: 'pi-user', text: 'Xem thông tin khách hàng của đơn hàng' },
+                             { icon: 'pi-map-marker', text: 'Cập nhật trạng thái vận chuyển' },
+                             { icon: 'pi-list', text: 'Xem lịch sử & danh sách đơn hàng' }
+                          ].map((item, idx) => (
+                             <li key={idx} className="flex items-center gap-3 text-sm font-bold text-gray-700">
+                                <i className={`pi ${item.icon} text-emerald-500`}></i>
+                                {item.text}
+                             </li>
+                          ))}
+                       </ul>
+                    </div>
+                    <div className="pt-6 border-t border-gray-100">
+                       <h3 className="text-xs font-black text-red-500 uppercase tracking-[2px] mb-4 flex items-center gap-2">
+                          <i className="pi pi-times-circle"></i> KHÔNG CÓ QUYỀN
+                       </h3>
+                       <ul className="space-y-4 opacity-40 grayscale">
+                          {['Quản lý sản phẩm', 'Quản lý khuyến mãi', 'Phân quyền Admin'].map((text, idx) => (
+                             <li key={idx} className="flex items-center gap-3 text-sm font-bold text-gray-500 line-through">
+                                <i className="pi pi-times-circle text-red-400"></i>
+                                {text}
+                             </li>
+                          ))}
+                       </ul>
+                    </div>
+                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+           </div>
 
-      {/* Phần Biểu đồ (Charts) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pie Chart: Doanh số theo danh mục */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
-          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><i className="pi pi-chart-pie text-xl" /></span>
-            {t("trending_categories", "Thể loại thịnh hành")}
-          </h2>
-          
-          <div className="flex-1 flex items-center justify-center relative min-h-[300px]">
-            {loading ? (
-              <Skeleton shape="circle" size="18rem" className="!bg-gray-100" />
-            ) : pieData.length > 0 ? (
-                <>
-                  <Chart type="doughnut" data={pieChartConfig} options={pieOptions} className="w-full flex justify-center" />
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[calc(50%+15px)] text-center pointer-events-none">
-                     <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest">{t("total_products", "TỔNG SP")}</p>
-                     <p className="text-3xl font-black text-gray-800 tracking-tighter">
-                       {pieData.reduce((acc, cur) => acc + Number(cur.value), 0)}
-                     </p>
-                  </div>
-                </>
-            ) : (
-                <div className="flex flex-col items-center justify-center text-gray-400 py-10">
-                    <i className="pi pi-box text-5xl mb-3 text-gray-200"></i>
-                    <p className="text-sm font-medium">{t("no_product_data", "Chưa có dữ liệu sản phẩm")}</p>
+           {/* Stats Widgets for Ops Admin */}
+           <div className="lg:col-span-8 flex flex-col gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {widgets.map((w, index) => (
+                    <div
+                       key={index}
+                       className="bg-white p-8 rounded-[2rem] shadow-sm hover:shadow-xl border border-gray-100 flex items-center justify-between group transition-all duration-300"
+                    >
+                       <div>
+                          <p className="text-gray-500 font-bold text-xs uppercase tracking-widest mb-2">{w.title}</p>
+                          <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{w.value}</h3>
+                          <p className="text-xs font-medium text-gray-400 mt-2">{w.desc}</p>
+                       </div>
+                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 ${w.iconBg}`}>
+                          <i className={`pi ${w.icon}`} />
+                       </div>
+                    </div>
+                 ))}
+              </div>
+              
+              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex-1">
+                 <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
+                       <span className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-inner pt-1">
+                          <i className="pi pi-history text-2xl" />
+                       </span>
+                       Nhật ký Vận hành
+                    </h2>
+                 </div>
+                  {adminLogs.length > 0 ? (
+                    <div className="space-y-6 overflow-y-auto pr-2 max-h-[400px]">
+                        {adminLogs.map((log) => {
+                          const cfg = getActionCfg(log.action);
+                          return (
+                            <div key={log.id} className="flex gap-4 group">
+                                <div className="flex flex-col items-center">
+                                   <div className={`w-10 h-10 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center flex-shrink-0 z-10 transition-transform group-hover:scale-110`}>
+                                      <i className={`pi ${cfg.icon} text-lg`} />
+                                   </div>
+                                   <div className="w-px h-full bg-slate-100 mt-2"></div>
+                                </div>
+                                <div className="flex-1 pb-6">
+                                   <div className="flex justify-between items-start mb-1">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                         {new Date(log.time).toLocaleString("vi-VN")}
+                                      </span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg">
+                                         Admin: {log.name}
+                                      </span>
+                                   </div>
+                                   <p className="text-sm font-bold text-slate-700 leading-tight group-hover:text-cyan-600 transition-colors">
+                                      {log.Details || log.action}
+                                   </p>
+                                </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-gray-400 py-10 opacity-60">
+                        <div className="w-20 h-20 mb-4 bg-gray-50 rounded-full flex items-center justify-center border-4 border-dashed border-gray-200">
+                           <i className="pi pi-clock text-3xl"></i>
+                        </div>
+                        <p className="text-sm font-bold">Chưa có hoạt động nào trong hôm nay</p>
+                    </div>
+                  )}
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Grid 4 thẻ thống kê (Chỉ hiển thị cho Admin 1 hoặc role khác) */}
+      {!isOpsAdmin && (
+        <>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} width="100%" height="7rem" borderRadius="1.5rem" className="!bg-gray-200" />
+            ))
+          ) : (
+            widgets.map((w, index) => (
+              <div
+                key={index}
+                className="bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-lg border border-gray-100 flex items-center justify-between group transition-all duration-300"
+              >
+                <div>
+                  <p className="text-gray-500 font-medium text-sm mb-1">{w.title}</p>
+                  <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{w.value}</h3>
                 </div>
-            )}
-          </div>
+                <div className={`w-14 h-14 rounded-[1rem] flex items-center justify-center text-white text-2xl shadow-lg group-hover:-translate-y-1 transition-transform duration-300 ${w.iconBg}`}>
+                  <i className={`pi ${w.icon}`} />
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Bar Chart: Doanh thu 7 ngày qua */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"><i className="pi pi-chart-bar text-xl" /></span>
-              {t("revenue_7_days", "Doanh thu 7 ngày qua")}
+        {/* Phần Biểu đồ (Charts) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Pie Chart */}
+          <div className="lg:col-span-1 bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
+            <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner"><i className="pi pi-chart-pie text-xl" /></span>
+              {t("trending_categories", "Thể loại thịnh hành")}
             </h2>
+            <div className="flex-1 flex items-center justify-center relative min-h-[300px]">
+              {loading ? (
+                <Skeleton shape="circle" size="18rem" className="!bg-gray-100" />
+              ) : pieData.length > 0 ? (
+                  <>
+                    <Chart type="doughnut" data={pieChartConfig} options={pieOptions} className="w-full flex justify-center" />
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[calc(50%+15px)] text-center pointer-events-none">
+                       <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest">{t("total_products", "TỔNG SP")}</p>
+                       <p className="text-3xl font-black text-gray-800 tracking-tighter">
+                         {pieData.reduce((acc, cur) => acc + Number(cur.value), 0)}
+                       </p>
+                    </div>
+                  </>
+              ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-400 py-10">
+                      <i className="pi pi-box text-5xl mb-3 text-gray-200"></i>
+                      <p className="text-sm font-medium">{t("no_product_data", "Chưa có dữ liệu sản phẩm")}</p>
+                  </div>
+              )}
+            </div>
           </div>
-          <p className="text-gray-400 text-sm mb-6 ml-10 -mt-8">{t("revenue_stats_desc", "Thống kê doanh thu theo ngày")}</p>
-          
-          <div className="flex-1 min-h-[300px] h-[300px] w-full">
-            {loading ? (
-              <Skeleton width="100%" height="100%" borderRadius="16px" className="!bg-gray-100" />
-            ) : barData.length > 0 ? (
-              <Chart type="bar" data={barChartConfig} options={barOptions} className="h-full w-full" />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                  <i className="pi pi-calendar text-5xl mb-3 text-gray-200"></i>
-                  <p className="text-sm font-medium">{t("no_recent_transactions", "Chưa có giao dịch nào gần đây")}</p>
-              </div>
-            )}
+
+          {/* Bar Chart */}
+          <div className="lg:col-span-2 bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-inner"><i className="pi pi-chart-bar text-xl" /></span>
+                {t("revenue_7_days", "Doanh thu 7 ngày qua")}
+              </h2>
+            </div>
+            <div className="flex-1 min-h-[300px] h-[300px] w-full">
+              {loading ? (
+                <Skeleton width="100%" height="100%" borderRadius="16px" className="!bg-gray-100" />
+              ) : barData.length > 0 ? (
+                <Chart type="bar" data={barChartConfig} options={barOptions} className="h-full w-full" />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <i className="pi pi-calendar text-5xl mb-3 text-gray-200"></i>
+                    <p className="text-sm font-medium">{t("no_recent_transactions", "Chưa có giao dịch nào gần đây")}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

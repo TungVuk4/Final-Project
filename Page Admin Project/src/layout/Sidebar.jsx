@@ -8,6 +8,7 @@ import {
   RiShieldUserFill,
   RiShoppingBag3Fill,
   RiPriceTag3Fill,
+  RiFileList3Fill,
 } from "react-icons/ri";
 import { useAuthStore } from "../stores/auth";
 
@@ -29,7 +30,7 @@ export default function Sidebar({ collapsed }) {
       label: t("dashboard"),
       icon: <RiDashboardFill size={22} />,
       path: "/",
-      allowed: ["admin1@fashionstyle.com"],
+      allowed: ["admin1@fashionstyle.com", "admin2@fashionstyle.com", "admin3@fashionstyle.com"],
     },
     {
       label: t("users"),
@@ -53,7 +54,13 @@ export default function Sidebar({ collapsed }) {
       label: "Khuyến Mãi",
       icon: <RiPriceTag3Fill size={22} />,
       path: "/promotions",
-      allowed: ["admin1@fashionstyle.com", "admin2@fashionstyle.com"],
+      allowed: ["admin2@fashionstyle.com"],
+    },
+    {
+      label: "Đơn hàng",
+      icon: <RiFileList3Fill size={22} />,
+      path: "/orders",
+      allowed: ["admin3@fashionstyle.com"],
     },
   ];
 
@@ -61,31 +68,31 @@ export default function Sidebar({ collapsed }) {
     item.allowed.includes(currentEmail)
   );
 
-  // Tinh chỉnh màu sắc cho Active và Normal ở cả 2 chế độ
+  // Tinh chỉnh màu sắc cho Active và Normal (Chỉ giữ Light Mode Premium)
   const activeStyles =
-    "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 font-bold shadow-sm";
+    "bg-cyan-50 text-cyan-600 font-bold shadow-sm";
   const normalStyles =
-    "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-800 dark:hover:text-gray-200";
+    "text-gray-500 hover:bg-gray-50 hover:text-gray-800";
 
   return (
     <aside
       className={`
         transition-all duration-300
-        bg-white dark:bg-[#1C252E] border-r border-gray-100 dark:border-gray-800
+        bg-white border-r border-gray-100
         flex flex-col h-screen sticky top-0
         ${collapsed ? "w-22" : "w-72"}
       `}
     >
       {/* Logo Section */}
       <div
-        onClick={() => navigate("/")} // Thêm sự kiện click để về trang chủ
+        onClick={() => navigate("/")} 
         className="h-20 flex items-center px-6 mb-2"
       >
-        <div className="bg-cyan-100 dark:bg-cyan-900/30 p-2.5 rounded-xl mr-3 flex items-center justify-center shadow-sm text-cyan-600 dark:text-cyan-400">
+        <div className="bg-cyan-50 p-2.5 rounded-xl mr-3 flex items-center justify-center shadow-sm text-cyan-600">
           <i className="pi pi-prime text-xl"></i>
         </div>
         {!collapsed && (
-          <span className="font-extrabold text-2xl tracking-tight text-slate-800 dark:text-white transition-colors">
+          <span className="font-extrabold text-2xl tracking-tight text-slate-800 transition-colors">
             JimVu
           </span>
         )}
@@ -93,7 +100,7 @@ export default function Sidebar({ collapsed }) {
 
       {!collapsed && (
         <div className="px-7 mb-3">
-          <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
             Overview
           </span>
         </div>
@@ -111,7 +118,6 @@ export default function Sidebar({ collapsed }) {
                   target={`.menu-icon-${itemKey}`}
                   content={item.label}
                   position="right"
-                  className="dark:bg-gray-800"
                 />
               )}
               <button
@@ -142,7 +148,7 @@ export default function Sidebar({ collapsed }) {
       {/* Footer Account Section */}
       <div className="p-4 mt-auto">
         <div
-          className={`flex items-center bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-800 rounded-2xl p-3 ${
+          className={`flex items-center bg-slate-50 border border-slate-100 rounded-2xl p-3 ${
             collapsed ? "justify-center" : "gap-3"
           }`}
         >
@@ -158,11 +164,11 @@ export default function Sidebar({ collapsed }) {
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold text-slate-800 dark:text-gray-200 truncate transition-colors">
+              <span className="text-sm font-bold text-slate-800 truncate transition-colors">
                 {user?.name || "Admin"}
               </span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-tighter truncate transition-colors">
-                {currentEmail === "admin1@fashionstyle.com" ? "Toàn quyền" :
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter truncate transition-colors">
+                {currentEmail === "admin1@fashionstyle.com" ? "Quản trị viên" :
                  currentEmail === "admin2@fashionstyle.com" ? "Quản lý kho" :
                  currentEmail === "admin3@fashionstyle.com" ? "Vận hành" : "Admin"}
               </span>

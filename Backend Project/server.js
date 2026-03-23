@@ -14,7 +14,8 @@ const pool = require("./dbpool/db");
 // --- CẤU HÌNH GLOBAL ---
 global.__basedir = __dirname;
 const httpPort = 8080;
-const hostname = "localhost";
+// Bỏ hostname hoặc đổi thành 0.0.0.0 để Server mở trên cả IPv4/IPv6
+const hostname = "0.0.0.0";
 
 // --- MIDDLEWARES HỆ THỐNG ---
 app.use(cors());

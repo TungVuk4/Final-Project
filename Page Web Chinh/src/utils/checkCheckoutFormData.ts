@@ -6,60 +6,40 @@ export const checkCheckoutFormData = (checkoutData: {
   };
   products: ProductInCart[];
   subtotal: number;
+  paymentMethod?: string;
 }) => {
   if (checkoutData.data?.address === "") {
-    toast.error("Address is required");
-    return false;
-  } else if (checkoutData.data?.apartment === "") {
-    toast.error("Apartment is required");
-    return false;
-  } else if (checkoutData.data?.cardNumber === "") {
-    toast.error("Card number is required");
+    toast.error("Vui lòng nhập Địa chỉ");
     return false;
   } else if (checkoutData.data?.city === "") {
-    toast.error("City is required");
-    return false;
-  } else if (checkoutData.data?.company === "") {
-    toast.error("Company is required");
+    toast.error("Vui lòng nhập Thành phố");
     return false;
   } else if (checkoutData.data?.country === "") {
-    toast.error("Country is required");
-    return false;
-  } else if (checkoutData.data?.cvc === "") {
-    toast.error("CVC is required");
+    toast.error("Vui lòng chọn Quốc gia");
     return false;
   } else if (checkoutData.data?.emailAddress === "") {
-    toast.error("Email address is required");
-    return false;
-  } else if (checkoutData.data?.expirationDate === "") {
-    toast.error("Expiration date is required");
+    toast.error("Vui lòng nhập Địa chỉ Email");
     return false;
   } else if (checkoutData.data?.firstName === "") {
-    toast.error("First name is required");
+    toast.error("Vui lòng nhập Tên");
     return false;
   } else if (checkoutData.data?.lastName === "") {
-    toast.error("Last name is required");
+    toast.error("Vui lòng nhập Họ");
     return false;
-  } else if (checkoutData.data?.nameOnCard === "") {
-    toast.error("Name on card is required");
-    return false;
-  } else if (checkoutData.data?.paymentType === "") {
-    toast.error("Payment type is required");
+  } else if (checkoutData?.paymentMethod === "") {
+    toast.error("Vui lòng chọn Hình thức thanh toán");
     return false;
   } else if (checkoutData.data?.phone === "") {
-    toast.error("Phone is required");
+    toast.error("Vui lòng nhập Số điện thoại");
     return false;
   } else if (checkoutData.data?.postalCode === "") {
-    toast.error("Postal code is required");
-    return false;
-  } else if (checkoutData.data?.region === "") {
-    toast.error("Region is required");
+    toast.error("Vui lòng nhập Mã bưu điện (Postal Code)");
     return false;
   } else if (checkoutData?.products.length === 0) {
-    toast.error("Products are required");
+    toast.error("Giỏ hàng của bạn đang trống");
     return false;
   } else if (checkoutData?.subtotal === 0) {
-    toast.error("Subtotal is required");
+    toast.error("Có lỗi xảy ra, tổng tiền không hợp lệ");
     return false;
   }
 

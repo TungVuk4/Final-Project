@@ -5,14 +5,15 @@ type CartState = {
   subtotal: number;
 };
 
-const initialState: CartState = {
-  productsInCart: [],
-  subtotal: 0,
+const getCartFromLocalStorage = (): CartState => {
+  const cart = localStorage.getItem("fashionCart");
+  return cart ? JSON.parse(cart) : { productsInCart: [], subtotal: 0 };
 };
+
+const initialState: CartState = getCartFromLocalStorage();
 
 export const cartSlice = createSlice({
   name: "cart",
-  // `createSlice` will infer the state type from the `initialState` argument
   initialState,
   reducers: {
     addProductToTheCart: (state, action: PayloadAction<ProductInCart>) => {
@@ -63,6 +64,12 @@ export const cartSlice = createSlice({
         (acc, product) => acc + product.price * product.quantity,
         0
       );
+      localStorage.setItem("fashionCart", JSON.stringify(state));
+    },
+    clearCart: (state) => {
+      state.productsInCart = [];
+      state.subtotal = 0;
+      localStorage.removeItem("fashionCart");
     },
   },
 });
@@ -72,6 +79,7 @@ export const {
   removeProductFromTheCart,
   updateProductQuantity,
   calculateTotalPrice,
+  clearCart,
 } = cartSlice.actions;
 
 export default cartSlice.reducer;

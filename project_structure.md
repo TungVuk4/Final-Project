@@ -26,7 +26,7 @@ Final Project/
           ┌──────────────────────────────┐
           │       Backend Project        │  Port: 8080
           │  Node.js · Express · MySQL   │
-          │  MSSQL · Firebase · JWT      │
+          │  MSSQL · Nodemailer · JWT    │
           └──────────────┬───────────────┘
                          │ HTTP (Axios)
                          ▼
@@ -40,7 +40,7 @@ Final Project/
 
 ## 1️⃣ Backend Project — REST API Server
 
-> **Công nghệ:** Node.js · Express · MySQL2 · MSSQL · JWT · Firebase Admin · Multer · Nodemailer
+> **Công nghệ:** Node.js · Express · MySQL2 · MSSQL · JWT · Multer · Nodemailer
 
 ### Cấu trúc
 
@@ -52,7 +52,7 @@ Backend Project/
 ├── sync-images.js          # Đồng bộ hình ảnh sản phẩm
 ├── seed-admin.js           # Script khởi tạo 3 tài khoản Admin mặc định
 ├── db-update-promotions.js # Cập nhật cấu trúc DB cho chức năng Khuyến mãi
-├── .env                    # Biến môi trường (DB, JWT secret, Firebase...)
+├── .env                    # Biến môi trường (DB, JWT secret, SMTP, v.v...)
 ├── package.json
 ├── _helpers/               # Tiện ích nội bộ
 │   ├── error-handler.js    # Global error handler middleware
@@ -109,7 +109,6 @@ Backend Project/
 | `bcryptjs` | Mã hoá mật khẩu |
 | `multer` | Upload file ảnh |
 | `nodemailer` | Gửi email (OTP, xác nhận) |
-| `firebase-admin` | Push notification (FCM) |
 | `node-schedule` | Cron job tự động |
 | `cors` | Cho phép cross-origin requests |
 | `dotenv` | Quản lý biến môi trường |
@@ -130,14 +129,14 @@ Backend Project/
 
 | Chức năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
 |---|:---:|:---:|:---:|
-| Dashboard & Thống kê | ✅ | ❌ | ❌ |
+| Dashboard & Thống kê | ✅ (Ẩn widget Đơn hàng) | ❌ | ❌ |
 | Quản lý người dùng | ✅ (Reset MK/Khóa TK) | ❌ | ❌ |
 | Thêm / Sửa sản phẩm | ✅ | ✅ | ❌ |
-| **Duyệt xóa sản phẩm** | ✅ (Admin 2 xin xóa) | ❌ (Chỉ gửi yc) | ❌ |
-| Quản lý Khuyến Mãi | ✅ | ✅ | ❌ |
-| Xem danh sách đơn hàng | ✅ | ❌ | ✅ |
-| Lên đơn hàng cho khách | ✅ | ❌ | ✅ |
-| **Duyệt đơn hàng** | ✅ (Duyệt Admin 3) | ❌ | ❌ |
+| **Duyệt xóa sản phẩm** | ✅ | ❌ (Chỉ gửi yc) | ❌ |
+| Quản lý Khuyến Mãi | ❌ (Chỉ A2) | ✅ | ❌ |
+| Xem danh sách đơn hàng | ❌ (Chỉ A3) | ❌ | ✅ |
+| Lên đơn hàng cho khách | ❌ (Chỉ A3) | ❌ | ✅ |
+| **Duyệt đơn hàng** | ✅ (Thao tác tại Dashboard) | ❌ | ❌ |
 | Quản lý Nhật ký (Logs) | ✅ (Xem + Xóa) | ✅ (Chỉ xem) | ✅ (Chỉ xem) |
 | Phân quyền Admin khác | ✅ | ❌ | ❌ |
 | Cấu hình hệ thống | ✅ | ❌ | ❌ |
@@ -285,7 +284,7 @@ User → Component → dispatch(action/thunk)
 
 ## 3️⃣ Page Admin Project — Dashboard Quản Trị
 
-> **Công nghệ:** React 19 · JavaScript (Vite) · Zustand · PrimeReact · Tailwind CSS v4 · React Router v7 · i18next
+> **Công nghệ:** React 19 · JavaScript (Vite) · Zustand · PrimeReact · Tailwind CSS v4 · React Router v7 · i18next · **Theme: strictly 100% Premium White (Light Mode)**
 
 ### Cấu trúc
 
@@ -316,11 +315,11 @@ Page Admin Project/
     │   ├── MobileDrawer.jsx
     │   └── UserPopover.jsx # Popover thông tin user + nút Logout
     └── pages/              # Các trang quản trị
-        ├── Dashboard.jsx       # Trang tổng quan & thống kê doanh thu
-        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh + Dark 3D Glass UI
+        ├── Dashboard.jsx       # Trang tổng quan & 🆕 Nhật ký vận hành (Admin 1 ẩn widget Tổng đơn)
+        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh + 🆕 Premium White UI
         ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct)
-        ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin Level 2)
-        ├── Roles.jsx           # Quản lý phân quyền + Sơ đồ luồng + 🆕 Nhật ký (Logs)
+        ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin 1 bị khóa truy cập)
+        ├── Roles.jsx           # Quản lý phân quyền + Sơ đồ luồng + 🆕 Quản lý Nhật ký (Logs)
         └── auth/               # Trang xác thực
             └── Login.jsx       # Đăng nhập (Role Admin + Token vô hạn)
 ```
@@ -331,12 +330,12 @@ Page Admin Project/
 
 | Menu / Tính năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
 |---|:---:|:---:|:---:|
-| Bảng điều khiển (Dashboard) | ✅ | ❌ | ❌ |
+| Bảng điều khiển (Dashboard) | ✅ (Cá nhân hóa) | ❌ | ❌ |
 | Người dùng | ✅ | ❌ | ❌ |
 | **Sản phẩm** (thêm/sửa + xem + upload ảnh) | ✅ | ✅ | ❌ |
-| **Khuyến Mãi** (Mã code, % Sale) | ✅ | ✅ | ❌ |
-| **Đơn hàng** (xem + lên đơn) | ✅ | ❌ | ✅ |
-| **Duyệt đơn hàng** | ✅ | ❌ | ❌ |
+| **Khuyến Mãi** (Mã code, % Sale) | ❌ | ✅ | ❌ |
+| **Đơn hàng** (xem + lên đơn) | ❌ | ❌ | ✅ |
+| **Duyệt đơn hàng** | ✅ (Tại Dashboard) | ❌ | ❌ |
 | Vai trò (Roles — chỉ xem) | ✅ | ✅ | ✅ |
 
 ### Luồng Đăng Nhập & Điều Hướng
@@ -469,7 +468,7 @@ npx react-native run-ios
 |---|---|
 | 🛒 **Mua sắm đồng bộ** | Bắt đầu chọn hàng trên Website → thanh toán ngay trên Mobile nhờ đồng bộ giỏ hàng qua RESTful API |
 | 👤 **Quản lý cá nhân hóa** | Xem lịch sử đơn hàng, cập nhật thông tin cá nhân, quản lý ví voucher trên thiết bị di động |
-| 🔔 **Tính năng bổ trợ** | Tìm kiếm nhanh bằng điện thoại và nhận thông báo (_push notification_ qua Firebase) về trạng thái đơn hàng |
+| 🔔 **Tính năng bổ trợ** | Tìm kiếm nhanh bằng điện thoại và nhận email thông báo trạng thái đơn hàng tức thì |
 
 ---
 
@@ -537,4 +536,4 @@ npm run dev
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 20/03/2026 — Cuối buổi làm việc*
+*📅 Tài liệu được cập nhật ngày: 23/03/2026 — Hoàn tất Fix lỗi Checkout & Đồng bộ giao diện Premium White*

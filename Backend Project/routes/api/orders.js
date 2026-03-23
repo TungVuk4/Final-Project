@@ -21,17 +21,38 @@ const transporter = nodemailer.createTransport({
 });
 
 // ----------------------------------------------------------------
+// [CUSTOMER] Lấy danh sách đơn hàng của chính mình
+// GET /api/orders/my-orders
+// ----------------------------------------------------------------
+router.get("/my-orders", requireAuth, async (req, res) => {
+  const userId = req.user.userId;
+  try {
+    const [orders] = await pool.query(
+      `SELECT o.OrderID, o.OrderDate, o.TotalAmount, o.Status, o.ShippingAddress, o.PaymentMethod
+       FROM Orders o
+       WHERE o.UserID = ?
+       ORDER BY o.OrderDate DESC`,
+      [userId]
+    );
+    res.status(200).json({ success: true, data: orders });
+  } catch (error) {
+    console.error("Lỗi lấy đơn hàng của user:", error);
+    res.status(500).json({ error: "Lỗi server khi lấy đơn hàng" });
+  }
+});
+
+// ----------------------------------------------------------------
 // [CUSTOMER] Đặt hàng (Checkout) - SỬ DỤNG TRANSACTION
 // POST /api/orders/checkout
 // ----------------------------------------------------------------
 router.post("/checkout", requireAuth, async (req, res) => {
   const userId = req.user.userId;
   let connection;
-  const { ShippingAddress, PromotionCode, PaymentMethod } = req.body; // THÊM PaymentMethod
+  const { ShippingAddress, PromotionCode, PaymentMethod, cartItems } = req.body;
 
-  if (!ShippingAddress || !PaymentMethod) {
+  if (!ShippingAddress || !PaymentMethod || !cartItems || cartItems.length === 0) {
     return res.status(400).json({
-      message: "Vui lòng cung cấp Địa chỉ giao hàng và Phương thức thanh toán.",
+      message: "Vui lòng cung cấp địa chỉ, phương thức thanh toán và sản phẩm.",
     });
   }
 
@@ -47,51 +68,30 @@ router.post("/checkout", requireAuth, async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // 1. Lấy Cart ID của người dùng
+    // 1. Lấy Cart ID (chỉ để dọn dẹp sau khi xong)
     const [cartRows] = await connection.query(
       "SELECT CartID FROM Shopping_Carts WHERE UserID = ?",
       [userId]
     );
-    if (cartRows.length === 0) {
-      await connection.rollback();
-      // Lỗi này không nên xảy ra nếu user được tạo đúng cách
-      return res.status(404).json({ error: "Không tìm thấy giỏ hàng." });
-    }
-    const cartId = cartRows[0].CartID;
+    const cartId = cartRows[0]?.CartID;
 
-    // 2. Lấy chi tiết sản phẩm trong giỏ hàng
-    const [cartItems] = await connection.query(
-      `SELECT ci.ProductID, ci.Quantity, p.Price 
-             FROM Cart_Items ci 
-             JOIN Products p ON ci.ProductID = p.ProductID 
-             WHERE ci.CartID = ?`,
-      [cartId]
-    );
-
-    if (cartItems.length === 0) {
-      await connection.rollback();
-      return res
-        .status(400)
-        .json({ error: "Giỏ hàng rỗng. Vui lòng thêm sản phẩm." });
-    }
-
+    // 2. Tính toán tổng tiền dựa trên cartItems từ Client gửi lên
     let totalAmount = 0;
+    for (let i = 0; i < cartItems.length; i++) {
+        const [prodRows] = await connection.query('SELECT Price FROM Products WHERE ProductID = ?', [cartItems[i].ProductID]);
+        if (prodRows.length === 0) throw new Error(`Sản phẩm ${cartItems[i].ProductID} không tồn tại`);
+        cartItems[i].Price = prodRows[0].Price;
+        totalAmount += cartItems[i].Quantity * cartItems[i].Price;
+    }
+
     let discount = 0;
     let promotionId = null;
 
-    // 3. Xử lý Khuyến mãi (Giả định logic này hoạt động)
-    if (PromotionCode) {
-      // ... (Logic kiểm tra mã khuyến mãi và tính discount) ...
-      // Đặt promotionId nếu hợp lệ
-    }
+    // 3. Xử lý Khuyến mãi (nếu có mã)
+    // (Logic kiểm tra mã khuyến mãi sẽ được bổ sung sau nếu cần)
 
-    // 4. Tính TotalAmount (sau khi đã tính discount)
-    cartItems.forEach((item) => {
-      totalAmount += item.Quantity * item.Price;
-    });
-
-    // Áp dụng khuyến mãi nếu có
-    const finalAmount = totalAmount * (1 - discount);
+    // 4. Áp dụng khuyến mãi nếu có
+    const finalAmount = Math.round(totalAmount * (1 - discount));
 
     // 5. Thiết lập Trạng thái Đơn hàng ban đầu
     let initialStatus;
@@ -103,16 +103,15 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
     // 6. Tạo Đơn hàng mới (Orders)
     const [orderResult] = await connection.query(
-      `INSERT INTO Orders (UserID, TotalAmount, Status, ShippingAddress, PromotionID, PaymentMethod)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO Orders (UserID, TotalAmount, Status, ShippingAddress, PaymentMethod)
+             VALUES (?, ?, ?, ?, ?)`,
       [
         userId,
         finalAmount,
         initialStatus,
         ShippingAddress,
-        promotionId,
         PaymentMethod,
-      ] // THÊM PaymentMethod
+      ]
     );
     const orderId = orderResult.insertId;
 
@@ -129,14 +128,16 @@ router.post("/checkout", requireAuth, async (req, res) => {
       [orderDetailsValues]
     );
 
-    // 8. Xóa giỏ hàng (Cart_Items)
-    await connection.query("DELETE FROM Cart_Items WHERE CartID = ?", [cartId]);
+    // 8. Xóa giỏ hàng (Cart_Items) nếu có
+    if (cartId) {
+      await connection.query("DELETE FROM Cart_Items WHERE CartID = ?", [cartId]);
+    }
 
     // 9. Trừ tồn kho và cảnh báo hết hàng
     for (const item of cartItems) {
-      await connection.query('UPDATE Products SET Stock = Stock - ? WHERE ProductID = ?', [item.Quantity, item.ProductID]);
-      const [stockCheck] = await connection.query('SELECT ProductName, Stock FROM Products WHERE ProductID = ?', [item.ProductID]);
-      if (stockCheck[0] && stockCheck[0].Stock <= 0) {
+      await connection.query('UPDATE Products SET StockQuantity = StockQuantity - ? WHERE ProductID = ?', [item.Quantity, item.ProductID]);
+      const [stockCheck] = await connection.query('SELECT ProductName, StockQuantity FROM Products WHERE ProductID = ?', [item.ProductID]);
+      if (stockCheck[0] && stockCheck[0].StockQuantity <= 0) {
         await connection.query('INSERT INTO Notifications (Type, Message, ProductID) VALUES (?, ?, ?)', 
           ['OUT_OF_STOCK', `Sản phẩm ${stockCheck[0].ProductName} đã hết hàng. Vui lòng nhập thêm!`, item.ProductID]
         );
@@ -146,13 +147,16 @@ router.post("/checkout", requireAuth, async (req, res) => {
     await connection.commit();
 
     // 📧 Gửi email thông báo đến Admin Vận Hành (Admin 3) khi có đơn hàng mới
+    let customerName = "Khách hàng";
+    let customerEmail = "";
+
     try {
       const [userRows] = await pool.query(
         "SELECT FullName, Email FROM Users WHERE UserID = ?",
         [userId]
       );
-      const customerName = userRows[0]?.FullName || "Khách hàng";
-      const customerEmail = userRows[0]?.Email || "";
+      customerName = userRows[0]?.FullName || "Khách hàng";
+      customerEmail = userRows[0]?.Email || "";
 
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -178,6 +182,29 @@ router.post("/checkout", requireAuth, async (req, res) => {
       console.warn("⚠️  Không gửi được email thông báo Admin3:", mailErr.message);
     }
 
+    // 📧 Gửi email xác nhận đặt hàng cho Khách Hàng
+    if (customerEmail) {
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: customerEmail,
+          subject: `[FashionStyle] Xác nhận đặt hàng #${orderId}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
+                  <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
+                  <p>Xin chào ${customerName},</p>
+                  <p>Đơn hàng <b>#${orderId}</b> của bạn trị giá <b>${finalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. 
+                  Chúng tôi sẽ qua xử lý và giao hàng đến địa chỉ:</p>
+                  <p style="background:#f3f4f6;padding:10px;border-radius:5px;">${ShippingAddress}</p>
+                  <p>Phương thức thanh toán: <b>${PaymentMethod}</b></p>
+                  <br/>
+                  <p>Trân trọng,<br/>FashionStyle Team</p>
+                 </div>`
+        });
+      } catch (mailErr) {
+        console.warn("⚠️ Không gửi được email cho khách:", mailErr.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: "Đặt hàng thành công.",
@@ -186,8 +213,8 @@ router.post("/checkout", requireAuth, async (req, res) => {
     });
   } catch (error) {
     if (connection) await connection.rollback();
-    console.error("Lỗi khi checkout:", error);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("❌ Lỗi khi checkout:", error.message, error.sqlMessage || "");
+    res.status(500).json({ error: "Lỗi server", detail: error.message });
   } finally {
     if (connection) connection.release();
   }
@@ -245,9 +272,9 @@ router.post("/guest-checkout", async (req, res) => {
 
     // Trừ tồn kho và cảnh báo hết hàng
     for (const item of cartItems) {
-      await connection.query('UPDATE Products SET Stock = Stock - ? WHERE ProductID = ?', [item.Quantity, item.ProductID]);
-      const [stockCheck] = await connection.query('SELECT ProductName, Stock FROM Products WHERE ProductID = ?', [item.ProductID]);
-      if (stockCheck[0] && stockCheck[0].Stock <= 0) {
+      await connection.query('UPDATE Products SET StockQuantity = StockQuantity - ? WHERE ProductID = ?', [item.Quantity, item.ProductID]);
+      const [stockCheck] = await connection.query('SELECT ProductName, StockQuantity FROM Products WHERE ProductID = ?', [item.ProductID]);
+      if (stockCheck[0] && stockCheck[0].StockQuantity <= 0) {
         await connection.query('INSERT INTO Notifications (Type, Message, ProductID) VALUES (?, ?, ?)', 
           ['OUT_OF_STOCK', `Sản phẩm ${stockCheck[0].ProductName} đã hết hàng. Vui lòng nhập thêm!`, item.ProductID]
         );
@@ -321,7 +348,7 @@ router.get("/admin", requireAuth, requireAdminLevel3, async (req, res) => {
     const sql = `
             SELECT o.*, u.FullName, u.Email, u.PhoneNumber
             FROM Orders o
-            JOIN Users u ON o.UserID = u.UserID
+            LEFT JOIN Users u ON o.UserID = u.UserID
             ORDER BY o.OrderDate DESC
         `;
     const [orders] = await pool.query(sql);
@@ -390,6 +417,17 @@ router.put("/admin/:id/approve", requireAuth, requireAdminLevel1, async (req, re
       console.warn("⚠️  Không gửi được email cho Admin3:", mailErr.message);
     }
 
+    // 📝 Ghi log hoạt động Admin
+    try {
+      const adminId = req.user.userId;
+      await pool.query(
+        "INSERT INTO admin_activity_logs (AdminID, ActionType, TableName, Details) VALUES (?, ?, ?, ?)",
+        [adminId, Action.toUpperCase() === "APPROVE" ? "APPROVE_ORDER" : "REJECT_ORDER", "Orders", `${Action.toUpperCase() === "APPROVE" ? "Duyệt" : "Từ chối"} đơn hàng #${orderId}${Reason ? `. Lý do: ${Reason}` : ""}`]
+      );
+    } catch (logErr) {
+      console.warn("⚠️ Không ghi được log duyệt đơn:", logErr.message);
+    }
+
     res.status(200).json({
       success: true,
       message: `Đơn hàng #${orderId} đã ${Action.toUpperCase() === "APPROVE" ? "được duyệt" : "bị từ chối"}.`,
@@ -424,6 +462,18 @@ router.put("/admin/:id/status", requireAuth, requireAdminLevel3, async (req, res
         .status(404)
         .json({ success: false, message: "Không tìm thấy đơn hàng." });
     }
+
+    // 📝 Ghi log hoạt động Admin
+    try {
+      const adminId = req.user.userId;
+      await pool.query(
+        "INSERT INTO admin_activity_logs (AdminID, ActionType, TableName, Details) VALUES (?, ?, ?, ?)",
+        [adminId, "UPDATE_STATUS", "Orders", `Cập nhật trạng thái đơn hàng #${orderId} thành: ${Status}`]
+      );
+    } catch (logErr) {
+      console.warn("⚠️ Không ghi được log cập nhật trạng thái:", logErr.message);
+    }
+
     res.status(200).json({
       success: true,
       message: `Cập nhật trạng thái đơn hàng ${orderId} thành ${Status} thành công.`,
@@ -538,28 +588,47 @@ router.post("/pay", requireAuth, async (req, res) => {
   }
 });
 
-// ----------------------------------------------------------------
-// [ADMIN 1 + 3] Lay lich su don hang cua 1 user cu the
-// GET /api/orders/admin/user/:userID
-// ----------------------------------------------------------------
-router.get('/admin/user/:userID', requireAuth, requireAdmin, async (req, res) => {
-  const { userID } = req.params;
+// [ADMIN 1 + 3] Xóa đơn hàng — requireAdminLevel3
+// DELETE /api/orders/admin/:id
+router.delete("/admin/:id", requireAuth, requireAdminLevel3, async (req, res) => {
+  const orderId = req.params.id;
+  let connection;
+
   try {
-    const [orders] = await pool.query(
-      `SELECT o.OrderID, o.TotalAmount, o.Status, o.PaymentMethod,
-              o.ShippingAddress, o.OrderDate as CreatedAt,
-              COUNT(od.ProductID) as itemCount
-       FROM orders o
-       LEFT JOIN orderdetails od ON o.OrderID = od.OrderID
-       WHERE o.UserID = ?
-       GROUP BY o.OrderID
-       ORDER BY o.OrderDate DESC`,
-      [userID]
-    );
-    res.status(200).json({ success: true, data: orders });
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // 1. Xóa chi tiết đơn hàng trước
+    await connection.query("DELETE FROM OrderDetails WHERE OrderID = ?", [orderId]);
+
+    // 2. Xóa đơn hàng
+    const [result] = await connection.query("DELETE FROM Orders WHERE OrderID = ?", [orderId]);
+
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng để xóa." });
+    }
+
+    // 📝 Ghi log hoạt động Admin
+    try {
+      const adminId = req.user.userId;
+      await connection.query(
+        "INSERT INTO admin_activity_logs (AdminID, ActionType, TableName, Details) VALUES (?, ?, ?, ?)",
+        [adminId, "DELETE_ORDER", "Orders", `Xóa vĩnh viễn đơn hàng #${orderId}`]
+      );
+    } catch (logErr) {
+      console.warn("⚠️ Không ghi được log xóa đơn:", logErr.message);
+    }
+
+    await connection.commit();
+    res.status(200).json({ success: true, message: `Đã xóa đơn hàng #${orderId} thành công.` });
   } catch (error) {
-    console.error('Loi lay orders theo user:', error.message);
-    res.status(500).json({ error: 'Loi server: ' + error.message });
+    if (connection) await connection.rollback();
+    console.error("Lỗi khi xóa đơn hàng Admin:", error);
+    res.status(500).json({ error: "Lỗi server khi xóa đơn hàng" });
+  } finally {
+    if (connection) connection.release();
   }
 });
+
 module.exports = router;

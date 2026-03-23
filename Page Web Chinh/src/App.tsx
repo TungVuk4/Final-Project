@@ -2,6 +2,7 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import {
   Cart,
   Checkout,
+  ForgotPassword,
   HomeLayout,
   Landing,
   Login,
@@ -14,6 +15,7 @@ import {
   SingleProduct,
   UserProfile,
 } from "./pages";
+
 import { checkoutAction, searchAction } from "./actions/index";
 import { shopCategoryLoader } from "./pages/Shop";
 import { loader as orderHistoryLoader } from "./pages/OrderHistory";
@@ -62,6 +64,10 @@ const router = createBrowserRouter([
       {
         path: "register",
         element: <Register />,
+      },
+      {
+        path: "forgot-password",
+        element: <ForgotPassword />,
       },
       {
         path: "order-confirmation",

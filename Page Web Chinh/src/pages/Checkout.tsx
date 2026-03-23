@@ -1,83 +1,98 @@
 import { HiTrash as TrashIcon } from "react-icons/hi2";
+import { useState } from "react";
 import { Button } from "../components";
 import { useAppDispatch, useAppSelector } from "../hooks";
-import { removeProductFromTheCart } from "../features/cart/cartSlice";
+import { removeProductFromTheCart, clearCart } from "../features/cart/cartSlice";
 import customFetch from "../axios/custom";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { checkCheckoutFormData } from "../utils/checkCheckoutFormData";
 import { getImageUrl } from "../utils/formatImageUrl";
-
-/*
-address: "Marka Markovic 22"
-apartment: "132"
-cardNumber: "21313"
-city: "Belgrade"
-company: "Bojan Cesnak"
-country: "United States"
-cvc: "122"
-emailAddress: "kuzma@gmail.com"
-expirationDate: "12312"
-firstName: "Aca22"
-lastName: "Kuzma"
-nameOnCard: "Aca JK"
-paymentType: "on"
-phone: "06123123132"
-postalCode: "11080"
-region: "Serbia"
-*/
+import { getAuthToken } from "../features/auth/authSlice";
 
 const paymentMethods = [
-  { id: "credit-card", title: "Credit card" },
-  { id: "paypal", title: "PayPal" },
-  { id: "etransfer", title: "eTransfer" },
+  { id: "COD", title: "Thanh toán khi nhận hàng (COD)" },
+  { id: "BANK TRANSFER", title: "Chuyển khoản Ngân hàng" },
 ];
 
 const Checkout = () => {
   const { productsInCart, subtotal } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const token = getAuthToken();
+  const [selectedPayment, setSelectedPayment] = useState<string>("COD");
 
   const handleCheckoutSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData);
+    const firstName = formData.get("firstName");
+    const lastName = formData.get("lastName");
+    const emailAddress = formData.get("emailAddress");
+    const address = formData.get("address");
+    const apartment = formData.get("apartment");
+    const city = formData.get("city");
+    const country = formData.get("country");
+    const postalCode = formData.get("postalCode");
+    const phone = formData.get("phone");
+    const paymentMethodForm = selectedPayment; // Sửa lỗi lấy dữ liệu từ state React thay vì FormData
+    
+    // Gộp địa chỉ đầy đủ (ví dụ: "123 Street (Apt 4), Ho Chi Minh, VN - 700000 - ĐT: 0123...")
+    const fullAddress = `${address} ${apartment ? `(${apartment})` : ""}, ${city}, ${country} - Mã Zip: ${postalCode} - SĐT: ${phone} - Khách hàng: ${firstName} ${lastName}`;
 
     const checkoutData = {
-      data,
+      data: Object.fromEntries(formData), // Để dành cho util validate
       products: productsInCart,
       subtotal: subtotal,
+      paymentMethod: selectedPayment, // Add state manually to check validator
     };
 
     if (!checkCheckoutFormData(checkoutData)) return;
 
-    // Chuẩn bị payload tương thích Backend Node.js
-    const payload = {
-      CustomerName: `${data.firstName} ${data.lastName}`,
-      CustomerEmail: data.emailAddress,
-      CustomerPhone: data.phone,
-      ShippingAddress: `${data.address}, ${data.apartment ? data.apartment + ', ' : ''}${data.city}, ${data.region}`,
-      PaymentMethod: 'COD', // Mặc định do Form hiện tại chỉ có option mô hình
+    // Phân loại payload:
+    const authPayload = {
+      ShippingAddress: fullAddress,
+      PaymentMethod: paymentMethodForm,
+      PromotionCode: null,
       cartItems: productsInCart.map(p => ({
-         ProductID: parseInt(p.id), // Extract ID số từ string "12xsred"
-         Quantity: p.quantity,
-         Price: p.price
+        ProductID: parseInt(p.id),
+        Quantity: p.quantity,
+        Price: p.price,
+      }))
+    };
+
+    const guestPayload = {
+      CustomerName: `${firstName} ${lastName}`,
+      CustomerEmail: emailAddress,
+      CustomerPhone: phone,
+      ShippingAddress: fullAddress,
+      PaymentMethod: paymentMethodForm,
+      cartItems: productsInCart.map(p => ({
+        ProductID: parseInt(p.id),
+        Quantity: p.quantity,
+        Price: p.price,
       }))
     };
 
     try {
-      // Vì React code dùng Redux thay vì Carts DB, ta sẽ dùng guest-checkout cho linh hoạt
-      const response = await customFetch.post("/orders/guest-checkout", payload);
-      
-      if (response.status === 201) {
-        toast.success("Order has been placed successfully");
-        navigate("/order-confirmation");
+      // Dùng endpoint phù hợp với trạng thái đăng nhập
+      if (token) {
+        await customFetch.post("/orders/checkout", authPayload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await customFetch.post("/orders/guest-checkout", guestPayload);
       }
-    } catch (error) {
-      toast.error("Something went wrong, please try again later");
+      toast.success("Đặt hàng thành công! Cảm ơn bạn đã mua sắm.");
+      // Clear cart items and LocalStorage after successful order
+      dispatch(clearCart());
+      navigate("/order-confirmation");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Đặt hàng thất bại, vui lòng thử lại.";
+      toast.error(msg);
       console.error(error);
     }
   };
+
 
   return (
     <div className="mx-auto max-w-screen-2xl">
@@ -247,9 +262,8 @@ const Checkout = () => {
                       className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border border shadow-sm sm:text-sm"
                       required={true}
                     >
-                      <option>United States</option>
-                      <option>Canada</option>
-                      <option>Mexico</option>
+                      <option value="Vietnam">Vietnam</option>
+                      <option value="United States">United States</option>
                     </select>
                   </div>
                 </div>
@@ -320,25 +334,17 @@ const Checkout = () => {
               <fieldset className="mt-4">
                 <legend className="sr-only">Payment type</legend>
                 <div className="space-y-4 sm:flex sm:items-center sm:space-x-10 sm:space-y-0">
-                  {paymentMethods.map((paymentMethod, paymentMethodIdx) => (
+                  {paymentMethods.map((paymentMethod) => (
                     <div key={paymentMethod.id} className="flex items-center">
-                      {paymentMethodIdx === 0 ? (
-                        <input
-                          id={paymentMethod.id}
-                          name="paymentType"
-                          type="radio"
-                          defaultChecked
-                          className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      ) : (
-                        <input
-                          id={paymentMethod.id}
-                          name="paymentType"
-                          type="radio"
-                          className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                      )}
-
+                      <input
+                        id={paymentMethod.id}
+                        name="paymentType"
+                        value={paymentMethod.id}
+                        type="radio"
+                        checked={selectedPayment === paymentMethod.id}
+                        onChange={(e) => setSelectedPayment(e.target.value)}
+                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
                       <label
                         htmlFor={paymentMethod.id}
                         className="ml-3 block text-sm font-medium text-gray-700"
@@ -350,83 +356,22 @@ const Checkout = () => {
                 </div>
               </fieldset>
 
-              <div className="mt-6 grid grid-cols-4 gap-x-4 gap-y-6">
-                <div className="col-span-4">
-                  <label
-                    htmlFor="card-number"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Card number
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      id="card-number"
-                      name="cardNumber"
-                      autoComplete="cc-number"
-                      className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border border shadow-sm sm:text-sm"
-                      required={true}
-                    />
-                  </div>
+              {/* Bank Transfer Instructions */}
+              {selectedPayment === "BANK TRANSFER" && (
+                <div className="mt-6 p-5 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+                  <h4 className="font-semibold mb-2 text-base">Thông tin chuyển khoản Ngân hàng</h4>
+                  <ul className="space-y-1.5 list-disc list-inside">
+                    <li>Ngân hàng: <strong>Vietcombank</strong></li>
+                    <li>Chủ tài khoản: <strong>FASHION STYLE CO. LTD</strong></li>
+                    <li>Số tài khoản: <strong className="text-lg">0123456789</strong></li>
+                    <li>Chi nhánh: <strong>Hồ Chí Minh</strong></li>
+                  </ul>
+                  <p className="mt-3 text-blue-700/80 italic">
+                    * Vui lòng ghi rõ nội dung chuyển khoản: <span className="font-medium">SĐT của bạn + Tên người đặt hàng</span>.<br />
+                    Đơn hàng sẽ được xử lý ngay sau khi hệ thống nhận được thanh toán.
+                  </p>
                 </div>
-
-                <div className="col-span-4">
-                  <label
-                    htmlFor="name-on-card"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Name on card
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      id="name-on-card"
-                      name="nameOnCard"
-                      autoComplete="cc-name"
-                      className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border border shadow-sm sm:text-sm"
-                      required={true}
-                    />
-                  </div>
-                </div>
-
-                <div className="col-span-3">
-                  <label
-                    htmlFor="expiration-date"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Expiration date (MM/YY)
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      name="expirationDate"
-                      id="expiration-date"
-                      autoComplete="cc-exp"
-                      className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border border shadow-sm sm:text-sm"
-                      required={true}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="cvc"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    CVC
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="text"
-                      name="cvc"
-                      id="cvc"
-                      autoComplete="csc"
-                      className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border border shadow-sm sm:text-sm"
-                      required={true}
-                    />
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

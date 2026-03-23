@@ -96,6 +96,15 @@ router.get('/dashboard/overview', async (req, res) => {
     const [[ordersResult]] = await pool.query(
       `SELECT COUNT(*) as totalOrders FROM orders`
     );
+    const [[pendingResult]] = await pool.query(
+      `SELECT COUNT(*) as pendingOrders FROM orders WHERE Status IN ('PENDING_COD', 'AWAITING_PAYMENT', 'Chờ xử lý')`
+    );
+    const [[shippingResult]] = await pool.query(
+      `SELECT COUNT(*) as shippingOrders FROM orders WHERE Status IN ('SHIPPING', 'Đang giao')`
+    );
+    const [[completedResult]] = await pool.query(
+      `SELECT COUNT(*) as completedOrders FROM orders WHERE Status IN ('DELIVERED', 'Đã giao')`
+    );
     const [[reviewsResult]] = await pool.query(
       `SELECT COUNT(*) as totalReviews FROM reviews`
     );
@@ -106,7 +115,10 @@ router.get('/dashboard/overview', async (req, res) => {
         totalRevenue: revenueResult.totalRevenue || 0,
         totalUsers: usersResult.totalUsers || 0,
         totalOrders: ordersResult.totalOrders || 0,
-        totalReviews: reviewsResult.totalReviews || 0
+        totalReviews: reviewsResult.totalReviews || 0,
+        pendingOrders: pendingResult.pendingOrders || 0,
+        shippingOrders: shippingResult.shippingOrders || 0,
+        completedOrders: completedResult.completedOrders || 0
       }
     });
   } catch (error) {
