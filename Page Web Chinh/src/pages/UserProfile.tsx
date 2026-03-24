@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import customFetch from "../axios/custom";
 import { logout } from "../features/auth/authSlice";
 import { store } from "../store";
+import { clearCart } from "../features/cart/cartSlice";
 import { getAuthToken } from "../features/auth/authSlice";
 
 type ProfileData = {
@@ -21,6 +22,7 @@ const UserProfile = () => {
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
 
   const handleLogout = () => {
+    store.dispatch(clearCart());
     store.dispatch(logout());
     toast.success("Đã đăng xuất thành công");
     navigate("/login");

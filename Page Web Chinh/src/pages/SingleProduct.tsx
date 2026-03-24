@@ -8,12 +8,14 @@ import {
 import { useParams } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { addProductToTheCart } from "../features/cart/cartSlice";
-import { useAppDispatch } from "../hooks";
+import { useAppDispatch, useAppSelector } from "../hooks";
 import WithSelectInputWrapper from "../utils/withSelectInputWrapper";
 import WithNumberInputWrapper from "../utils/withNumberInputWrapper";
 import { formatCategoryName } from "../utils/formatCategoryName";
 import toast from "react-hot-toast";
 import { getImageUrl } from "../utils/formatImageUrl";
+import { formatCurrency } from "../utils/formatCurrency";
+import customFetch from "../axios/custom";
 
 const SingleProduct = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -24,6 +26,8 @@ const SingleProduct = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const params = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
+  const { userInfo } = useAppSelector((state) => state.auth);
+  const token = userInfo?.token;
 
   // defining HOC instances
   const SelectInputUpgrade = WithSelectInputWrapper(StandardSelectInput);
@@ -47,15 +51,18 @@ const SingleProduct = () => {
     fetchProducts();
   }, [params.id]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (singleProduct) {
       dispatch(
         addProductToTheCart({
           id: singleProduct.id + size + color,
+          productId: singleProduct.id,
           image: singleProduct.image,
           title: singleProduct.title,
           category: singleProduct.category,
-          price: singleProduct.price,
+          price: (singleProduct.discountPercent && singleProduct.discountPercent > 0)
+            ? singleProduct.price * (1 - singleProduct.discountPercent / 100)
+            : singleProduct.price,
           quantity,
           size,
           color,
@@ -64,8 +71,39 @@ const SingleProduct = () => {
         })
       );
       toast.success("Product added to the cart");
+
+      if (token) {
+        // User đã đăng nhập → sync lên DB bằng JWT
+        try {
+          await customFetch.post(
+            "/cart/add",
+            { productId: singleProduct.id, quantity, size },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (error) {
+          console.error("Sync cart to db failed:", error);
+        }
+      } else {
+        // Khách vãng lai → tạo/lấy guestToken, sync lên DB qua /cart/guest/add
+        try {
+          let guestToken = localStorage.getItem("fashionGuestToken");
+          if (!guestToken) {
+            guestToken = crypto.randomUUID();
+            localStorage.setItem("fashionGuestToken", guestToken);
+          }
+          await customFetch.post("/cart/guest/add", {
+            guestToken,
+            productId: singleProduct.id,
+            quantity,
+            size,
+          });
+        } catch (error) {
+          console.error("Sync guest cart to db failed:", error);
+        }
+      }
     }
   };
+
 
   return (
     <div className="max-w-screen-2xl mx-auto px-5 max-[400px]:px-3">
@@ -84,7 +122,23 @@ const SingleProduct = () => {
               <p className="text-base text-secondaryBrown">
                 {formatCategoryName(singleProduct?.category || "")}
               </p>
-              <p className="text-base font-bold">${ singleProduct?.price }</p>
+              <div className="flex items-center gap-3">
+                {(singleProduct?.discountPercent ?? 0) > 0 ? (
+                  <>
+                    <span className="bg-orange-500 text-white font-bold text-sm px-2 py-0.5 rounded-md shadow-sm">
+                      -{singleProduct?.discountPercent}%
+                    </span>
+                    <span className="text-gray-400 line-through text-lg">
+                      {formatCurrency(singleProduct?.price || 0)}
+                    </span>
+                    <p className="text-orange-500 text-2xl font-bold">
+                      {formatCurrency((singleProduct?.price || 0) * (1 - (singleProduct?.discountPercent || 0) / 100))}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-2xl font-bold">{formatCurrency(singleProduct?.price || 0)}</p>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -256,6 +310,7 @@ const SingleProduct = () => {
               price={product?.price}
               popularity={product?.popularity}
               stock={product?.stock}
+              discountPercent={product?.discountPercent}
             />
           ))}
         </div>

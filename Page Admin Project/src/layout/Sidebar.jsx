@@ -51,13 +51,13 @@ export default function Sidebar({ collapsed }) {
       allowed: ["admin1@fashionstyle.com", "admin2@fashionstyle.com"],
     },
     {
-      label: "Khuyến Mãi",
+      label: t("promotions_menu", "Khuyến Mãi"),
       icon: <RiPriceTag3Fill size={22} />,
       path: "/promotions",
       allowed: ["admin2@fashionstyle.com"],
     },
     {
-      label: "Đơn hàng",
+      label: t("orders_menu", "Đơn hàng"),
       icon: <RiFileList3Fill size={22} />,
       path: "/orders",
       allowed: ["admin3@fashionstyle.com"],
@@ -165,12 +165,12 @@ export default function Sidebar({ collapsed }) {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-bold text-slate-800 truncate transition-colors">
-                {user?.name || "Admin"}
+                {currentEmail === "admin1@fashionstyle.com" ? t("role_admin1_name", "Admin Chính") : currentEmail === "admin2@fashionstyle.com" ? t("role_admin2_name", "Admin Kho") : currentEmail === "admin3@fashionstyle.com" ? t("role_admin3_name", "Admin Vận Hành") : user?.name || "Admin"}
               </span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter truncate transition-colors">
-                {currentEmail === "admin1@fashionstyle.com" ? "Quản trị viên" :
-                 currentEmail === "admin2@fashionstyle.com" ? "Quản lý kho" :
-                 currentEmail === "admin3@fashionstyle.com" ? "Vận hành" : "Admin"}
+                {currentEmail === "admin1@fashionstyle.com" ? t("role_admin1_desc", "Quản trị viên") :
+                 currentEmail === "admin2@fashionstyle.com" ? t("role_admin2_desc", "Quản lý kho") :
+                 currentEmail === "admin3@fashionstyle.com" ? t("role_admin3_desc", "Vận hành") : "Admin"}
               </span>
             </div>
           )}

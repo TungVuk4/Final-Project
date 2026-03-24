@@ -6,11 +6,13 @@ interface Product {
   price: number;
   popularity: number;
   stock: number;
+  discountPercent?: number;
   reviews?: any[];
 }
 
 interface ProductInCart extends Product {
   id: string;
+  productId: string;
   quantity: number;
   size: string;
   color: string;

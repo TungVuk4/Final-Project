@@ -46,12 +46,14 @@ Final Project/
 
 ```
 Backend Project/
-├── server.js               # Entry point — khởi tạo Express, đăng ký routes (Auth, Products, Colors, Logs...)
+├── server.js               # Entry point — khởi tạo Express, đăng ký routes
 ├── install.js              # Đăng ký server như Windows Service
 ├── uninstall.js            # Gỡ Windows Service
 ├── sync-images.js          # Đồng bộ hình ảnh sản phẩm
 ├── seed-admin.js           # Script khởi tạo 3 tài khoản Admin mặc định
 ├── db-update-promotions.js # Cập nhật cấu trúc DB cho chức năng Khuyến mãi
+├── setup_system_config.js  # 🆕 Script migration bảng system_config (chạy 1 lần)
+├── benchmark_v2.js         # 🆕 Script đo tốc độ 15 API endpoints (5 lần/endpoint)
 ├── .env                    # Biến môi trường (DB, JWT secret, SMTP, v.v...)
 ├── package.json
 ├── _helpers/               # Tiện ích nội bộ
@@ -66,16 +68,17 @@ Backend Project/
 ├── routes/
 │   └── api/                # Định nghĩa API endpoints
 │       ├── auth-temp.js    # Đăng ký, Đăng nhập, OTP, quên mật khẩu (vô hạn cho Admin)
-│       ├── products.js     # CRUD sản phẩm, lọc Color/Cat/Price (min-max), POST /upload-image (Multer), GET firstImage
+│       ├── products.js     # CRUD sản phẩm, lọc Color/Cat/Price, POST /upload-image (Multer)
 │       ├── categories.js   # CRUD danh mục sản phẩm (4 Bộ sưu tập Collection)
 │       ├── colors.js       # 🆕 Quản lý bảng màu (BLACK, RED, BLUE, WHITE, ROSE, GREEN)
 │       ├── admin_logs.js   # 🆕 Nhật ký hoạt động của 3 Admin (CRUD Logs)
-│       ├── cart.js         # Giỏ hàng (thêm/xóa/cập nhật)
-│       ├── orders.js       # Đặt hàng, lịch sử, cập nhật trạng thái
+│       ├── cart.js         # Giỏ hàng User đã đăng nhập + 🆕 Guest cart (GuestToken)
+│       ├── orders.js       # Đặt hàng, lịch sử, trạng thái — 🆕 Email gửi nền (fire-and-forget)
 │       ├── promotions.js   # Quản lý mã giảm giá (Admin Level 2)
-│       ├── stats.js        # Thống kê doanh thu, tồn kho, và API cho Dashboard (overview/charts)
+│       ├── stats.js        # Thống kê Dashboard — 🆕 đếm đúng PROCESSING trong pendingOrders
 │       ├── reviews.js      # 🆕 Quản lý đánh giá (Hỗ trợ Guest & User)
 │       ├── notifications.js# 🆕 API thông báo hệ thống (chuông báo Topbar)
+│       ├── system-config.js# 🆕 Cấu hình hệ thống (bảo trì, alerts, đóng đăng ký) — Admin 1 only
 │       └── user.js         # Hồ sơ người dùng, phân quyền CanDeleteProduct, IsActive
 ├── uploads/                # Thư mục lưu ảnh sản phẩm được upload
 └── daemon/                 # Windows Service runner (WinSW)
@@ -91,12 +94,13 @@ Backend Project/
 | Sản phẩm | `/api/products` | CRUD, lọc Color/Cat/Price, `POST /upload-image` (upload ảnh) | Public / Admin |
 | Danh mục | `/api/categories` | 4 Bộ sưu tập chính (Luxury, Special, Summer, Unique) | Public / Admin |
 | Màu sắc | `/api/colors` | 🆕 6 màu cơ bản (BLACK, RED, BLUE...) | Public / Admin |
-| Giỏ hàng | `/api/cart` | Thêm/xóa/cập nhật giỏ hàng | Customer Token |
-| Đơn hàng | `/api/orders` | Đặt hàng, lịch sử, trạng thái | Customer/Admin Token |
+| Giỏ hàng | `/api/cart` | User cart + 🆕 Guest cart (`/guest`, `/guest/add`, `/guest/remove`) | Customer Token / GuestToken |
+| Đơn hàng | `/api/orders` | Đặt hàng (COD/Online), lịch sử, duyệt đơn — 🆕 Email gửi nền | Customer/Admin Token |
 | Nhật ký | `/api/admin_logs` | 🆕 Ghi lại mọi hành động của Admin | Admin Level 1 |
 | Thông báo | `/api/notifications` | 🆕 Cảnh báo Hết hàng (OUT_OF_STOCK) & Admin Logs | Admin Token |
 | Đánh giá | `/api/reviews` | 🆕 Lấy danh sách & Gửi review (Guest/User) | Public |
-| Thống kê | `/api/stats` | Báo cáo doanh thu / tồn kho | Admin Token |
+| Thống kê | `/api/stats` | Báo cáo doanh thu / tồn kho / dashboard overview+charts | Admin Token |
+| **Cấu hình** | `/api/system-config` | 🆕 Bảo trì, Telegram alerts, Đóng đăng ký — Admin 1 quản lý | Admin Level 1 / Public |
 
 ### Thư viện chính
 
@@ -133,9 +137,9 @@ Backend Project/
 | Quản lý người dùng | ✅ (Reset MK/Khóa TK) | ❌ | ❌ |
 | Thêm / Sửa sản phẩm | ✅ | ✅ | ❌ |
 | **Duyệt xóa sản phẩm** | ✅ | ❌ (Chỉ gửi yc) | ❌ |
-| Quản lý Khuyến Mãi | ❌ (Chỉ A2) | ✅ | ❌ |
-| Xem danh sách đơn hàng | ❌ (Chỉ A3) | ❌ | ✅ |
-| Lên đơn hàng cho khách | ❌ (Chỉ A3) | ❌ | ✅ |
+| Quản lý Khuyến Mãi | ✅ (Đã ẩn UI) | ✅ | ❌ |
+| Xem danh sách đơn hàng | ✅ (Đã ẩn UI) | ❌ | ✅ |
+| Lên đơn hàng cho khách | ✅ (Đã ẩn UI) | ❌ | ✅ |
 | **Duyệt đơn hàng** | ✅ (Thao tác tại Dashboard) | ❌ | ❌ |
 | Quản lý Nhật ký (Logs) | ✅ (Xem + Xóa) | ✅ (Chỉ xem) | ✅ (Chỉ xem) |
 | Phân quyền Admin khác | ✅ | ❌ | ❌ |
@@ -198,7 +202,7 @@ Page Web Chinh/
 ├── package.json
 └── src/
     ├── main.tsx            # Entry point React (Provider + BrowserRouter)
-    ├── App.tsx             # Root component & routing
+    ├── App.tsx             # 🆕 Root + SystemConfigGuard (hiển thị Maintenance page khi bật)
     ├── store.ts            # Redux Store (kết hợp các slices)
     ├── typings.d.ts        # Global TypeScript types
     ├── index.css           # Global styles
@@ -208,7 +212,8 @@ Page Web Chinh/
     ├── actions/
     │   └── index.ts        # Redux async thunks (fetchProducts, login...)
     ├── hooks/
-    │   └── index.ts        # Custom typed Redux hooks
+    │   ├── index.ts        # Custom typed Redux hooks
+    │   └── useSystemConfig.ts  # 🆕 Fetch + cache (30s) system config từ public API
     ├── data/
     │   └── db.json         # Mock data cho JSON Server
     ├── features/           # Redux state management
@@ -225,7 +230,7 @@ Page Web Chinh/
     │   ├── ShowingPagination.tsx · ShowingSearchPagination.tsx
     │   ├── QuantityInput.tsx · ScrollToTop.tsx · SocialMediaFooter.tsx
     │   └── StandardSelectInput.tsx
-    ├── pages/              # 13 Trang chính
+    ├── pages/              # 15 Trang chính
     │   ├── Landing.tsx         # Trang chủ
     │   ├── Shop.tsx            # Danh sách sản phẩm
     │   ├── SingleProduct.tsx   # Chi tiết sản phẩm
@@ -233,9 +238,11 @@ Page Web Chinh/
     │   ├── Checkout.tsx        # Thanh toán
     │   ├── OrderConfirmation.tsx
     │   ├── OrderHistory.tsx · SingleOrderHistory.tsx
-    │   ├── Login.tsx · Register.tsx
+    │   ├── Login.tsx
+    │   ├── Register.tsx        # 🆕 Block form khi close_registration = 1
     │   ├── UserProfile.tsx
     │   ├── Search.tsx
+    │   ├── MaintenancePage.tsx # 🆕 Trang bảo trì (hiển thị toàn trang khi maintenance_mode = 1)
     │   └── HomeLayout.tsx      # Layout khung (Header + Footer)
     └── utils/              # 10 Utility functions
         ├── checkCheckoutFormData.ts
@@ -310,16 +317,17 @@ Page Admin Project/
     ├── layout/             # Các layout component
     │   ├── AppLayout.jsx   # Layout chính (Sidebar + Topbar)
     │   ├── AuthLayout.jsx  # Layout trang đăng nhập
-    │   ├── Sidebar.jsx     # Sidebar điều hướng (không có nút Đăng nhập)
+    │   ├── Sidebar.jsx     # Sidebar điều hướng
     │   ├── Topbar.jsx      # Thanh trên cùng (user, breadcrumb)
     │   ├── MobileDrawer.jsx
     │   └── UserPopover.jsx # Popover thông tin user + nút Logout
     └── pages/              # Các trang quản trị
-        ├── Dashboard.jsx       # Trang tổng quan & 🆕 Nhật ký vận hành (Admin 1 ẩn widget Tổng đơn)
-        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh + 🆕 Premium White UI
-        ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct)
-        ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin 1 bị khóa truy cập)
-        ├── Roles.jsx           # Quản lý phân quyền + Sơ đồ luồng + 🆕 Quản lý Nhật ký (Logs)
+        ├── Dashboard.jsx       # Tổng quan + Nhật ký + 🆕 Toggle Cấu hình Hệ thống (Admin 1)
+        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh
+        ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct, lịch sử đơn)
+        ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin 1 bị ẩn UI)
+        ├── Orders.jsx          # 🆕 Fix đếm PROCESSING trong "Cần xử lý" — Admin 3 thấy đơn Admin 1 duyệt
+        ├── Roles.jsx           # Phân quyền + 🆕 3 Toggle Cấu hình Hệ thống (Admin 1 bật/tắt thực tế)
         └── auth/               # Trang xác thực
             └── Login.jsx       # Đăng nhập (Role Admin + Token vô hạn)
 ```
@@ -333,8 +341,8 @@ Page Admin Project/
 | Bảng điều khiển (Dashboard) | ✅ (Cá nhân hóa) | ❌ | ❌ |
 | Người dùng | ✅ | ❌ | ❌ |
 | **Sản phẩm** (thêm/sửa + xem + upload ảnh) | ✅ | ✅ | ❌ |
-| **Khuyến Mãi** (Mã code, % Sale) | ❌ | ✅ | ❌ |
-| **Đơn hàng** (xem + lên đơn) | ❌ | ❌ | ✅ |
+| **Khuyến Mãi** (Mã code, % Sale) | ✅ (Đã ẩn UI) | ✅ | ❌ |
+| **Đơn hàng** (xem + lên đơn) | ✅ (Đã ẩn UI) | ❌ | ✅ |
 | **Duyệt đơn hàng** | ✅ (Tại Dashboard) | ❌ | ❌ |
 | Vai trò (Roles — chỉ xem) | ✅ | ✅ | ✅ |
 
@@ -536,4 +544,4 @@ npm run dev
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 23/03/2026 — Hoàn tất Fix lỗi Checkout & Đồng bộ giao diện Premium White*
+*📅 Tài liệu được cập nhật ngày: 24/03/2026 — Cấu hình hệ thống, tối ưu email, fix Admin 3*

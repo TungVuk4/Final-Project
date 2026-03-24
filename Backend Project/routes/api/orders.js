@@ -42,6 +42,44 @@ router.get("/my-orders", requireAuth, async (req, res) => {
 });
 
 // ----------------------------------------------------------------
+// [CUSTOMER] Xem chi tiết 1 đơn hàng của mình
+// GET /api/orders/my-orders/:id
+// ----------------------------------------------------------------
+router.get("/my-orders/:id", requireAuth, async (req, res) => {
+  const userId = req.user.userId;
+  const orderId = req.params.id;
+  try {
+    // Lấy thông tin đơn hàng, kiểm tra phải thuộc user này
+    const [orderRows] = await pool.query(
+      `SELECT o.OrderID, o.OrderDate, o.TotalAmount, o.Status, o.ShippingAddress, o.PaymentMethod
+       FROM Orders o
+       WHERE o.OrderID = ? AND o.UserID = ?`,
+      [orderId, userId]
+    );
+    if (orderRows.length === 0) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng." });
+    }
+    const order = orderRows[0];
+
+    // Lấy danh sách sản phẩm trong đơn (dùng đúng cột Price theo schema)
+    const [items] = await pool.query(
+      `SELECT od.Quantity, od.Price as UnitPrice, p.ProductName, COALESCE(p.DiscountPercent, 0) as DiscountPercent,
+              (SELECT FileName FROM Image WHERE ProductID = p.ProductID LIMIT 1) as image
+       FROM OrderDetails od
+       JOIN Products p ON od.ProductID = p.ProductID
+       WHERE od.OrderID = ?`,
+      [orderId]
+    );
+
+    res.status(200).json({ success: true, data: { ...order, items } });
+  } catch (error) {
+    console.error("Lỗi lấy chi tiết đơn hàng:", error.message, error.sqlMessage || "");
+    res.status(500).json({ error: "Lỗi server khi lấy chi tiết đơn hàng", detail: error.message });
+  }
+});
+
+
+// ----------------------------------------------------------------
 // [CUSTOMER] Đặt hàng (Checkout) - SỬ DỤNG TRANSACTION
 // POST /api/orders/checkout
 // ----------------------------------------------------------------
@@ -75,12 +113,20 @@ router.post("/checkout", requireAuth, async (req, res) => {
     );
     const cartId = cartRows[0]?.CartID;
 
-    // 2. Tính toán tổng tiền dựa trên cartItems từ Client gửi lên
+    // 2. Tính toán tổng tiền — áp dụng DiscountPercent nếu có
     let totalAmount = 0;
     for (let i = 0; i < cartItems.length; i++) {
-        const [prodRows] = await connection.query('SELECT Price FROM Products WHERE ProductID = ?', [cartItems[i].ProductID]);
+        const [prodRows] = await connection.query(
+          'SELECT Price, COALESCE(DiscountPercent, 0) AS DiscountPercent FROM Products WHERE ProductID = ?',
+          [cartItems[i].ProductID]
+        );
         if (prodRows.length === 0) throw new Error(`Sản phẩm ${cartItems[i].ProductID} không tồn tại`);
-        cartItems[i].Price = prodRows[0].Price;
+        const basePrice = prodRows[0].Price;
+        const discountPct = prodRows[0].DiscountPercent || 0;
+        // Lưu giá đã giảm vào OrderDetails
+        cartItems[i].Price = discountPct > 0
+          ? Math.round(basePrice * (1 - discountPct / 100))
+          : basePrice;
         totalAmount += cartItems[i].Quantity * cartItems[i].Price;
     }
 
@@ -146,71 +192,59 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
     await connection.commit();
 
-    // 📧 Gửi email thông báo đến Admin Vận Hành (Admin 3) khi có đơn hàng mới
-    let customerName = "Khách hàng";
-    let customerEmail = "";
-
-    try {
-      const [userRows] = await pool.query(
-        "SELECT FullName, Email FROM Users WHERE UserID = ?",
-        [userId]
-      );
-      customerName = userRows[0]?.FullName || "Khách hàng";
-      customerEmail = userRows[0]?.Email || "";
-
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: "admin3@fashionstyle.com",
-        subject: `[FashionStyle] ⚠️ Đơn hàng mới #${orderId} cần xử lý`,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:600px;">
-            <h2 style="color:#059669;">📦 Có đơn hàng mới cần xử lý!</h2>
-            <table style="width:100%;border-collapse:collapse;">
-              <tr><td style="padding:8px;font-weight:bold;">Mã đơn hàng:</td><td style="padding:8px;">#${orderId}</td></tr>
-              <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Khách hàng:</td><td style="padding:8px;">${customerName} (${customerEmail})</td></tr>
-              <tr><td style="padding:8px;font-weight:bold;">Tổng tiền:</td><td style="padding:8px;">${finalAmount.toLocaleString("vi-VN")} VNĐ</td></tr>
-              <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Địa chỉ giao:</td><td style="padding:8px;">${ShippingAddress}</td></tr>
-              <tr><td style="padding:8px;font-weight:bold;">Phương thức TT:</td><td style="padding:8px;">${PaymentMethod}</td></tr>
-              <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Trạng thái:</td><td style="padding:8px;"><b>${initialStatus}</b></td></tr>
-            </table>
-            <br/>
-            <p style="color:#6b7280;">👉 Vui lòng vào <a href="http://localhost:5174">Trang Admin</a> để lên đơn hàng và chờ Admin Chính duyệt.</p>
-          </div>
-        `,
-      });
-    } catch (mailErr) {
-      console.warn("⚠️  Không gửi được email thông báo Admin3:", mailErr.message);
-    }
-
-    // 📧 Gửi email xác nhận đặt hàng cho Khách Hàng
-    if (customerEmail) {
-      try {
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: customerEmail,
-          subject: `[FashionStyle] Xác nhận đặt hàng #${orderId}`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
-                  <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
-                  <p>Xin chào ${customerName},</p>
-                  <p>Đơn hàng <b>#${orderId}</b> của bạn trị giá <b>${finalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. 
-                  Chúng tôi sẽ qua xử lý và giao hàng đến địa chỉ:</p>
-                  <p style="background:#f3f4f6;padding:10px;border-radius:5px;">${ShippingAddress}</p>
-                  <p>Phương thức thanh toán: <b>${PaymentMethod}</b></p>
-                  <br/>
-                  <p>Trân trọng,<br/>FashionStyle Team</p>
-                 </div>`
-        });
-      } catch (mailErr) {
-        console.warn("⚠️ Không gửi được email cho khách:", mailErr.message);
-      }
-    }
-
+    // Trả response ngay — email gửi nền (fire-and-forget)
     res.status(201).json({
       success: true,
       message: "Đặt hàng thành công.",
       orderId: orderId,
       status: initialStatus,
     });
+
+    // 📧 Gửi email thông báo đến Admin Vận Hành (Admin 3) — ASYNC, không chṻ
+    let customerName = "Khách hàng";
+    let customerEmail = "";
+    pool.query("SELECT FullName, Email FROM Users WHERE UserID = ?", [userId])
+      .then(([userRows]) => {
+        customerName = userRows[0]?.FullName || "Khách hàng";
+        customerEmail = userRows[0]?.Email || "";
+
+        return transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: "admin3@fashionstyle.com",
+          subject: `[FashionStyle] ⚠️ Đơn hàng mới #${orderId} cần xử lý`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:600px;">
+              <h2 style="color:#059669;">📦 Có đơn hàng mới cần xử lý!</h2>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:8px;font-weight:bold;">Mã đơn:</td><td style="padding:8px;">#${orderId}</td></tr>
+                <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Khách hàng:</td><td style="padding:8px;">${customerName} (${customerEmail})</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;">Tổng tiền:</td><td style="padding:8px;">${finalAmount.toLocaleString("vi-VN")} VNĐ</td></tr>
+                <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Địa chỉ giao:</td><td style="padding:8px;">${ShippingAddress}</td></tr>
+                <tr><td style="padding:8px;font-weight:bold;">Phương thức TT:</td><td style="padding:8px;">${PaymentMethod}</td></tr>
+                <tr style="background:#f9fafb;"><td style="padding:8px;font-weight:bold;">Trạng thái:</td><td style="padding:8px;"><b>${initialStatus}</b></td></tr>
+              </table>
+              <p style="color:#6b7280;">👉 Vui lòng vào <a href="http://localhost:5174">Trang Admin</a> để lên đơn hàng.</p>
+            </div>`,
+        });
+      })
+      .then(() => {
+        // Gửi email xác nhận cho khách (nếu có email)
+        if (!customerEmail) return;
+        return transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: customerEmail,
+          subject: `[FashionStyle] Xác nhận đặt hàng #${orderId}`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
+                  <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
+                  <p>Xin chào ${customerName},</p>
+                  <p>Đơn hàng <b>#${orderId}</b> của bạn trị giá <b>${finalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận.</p>
+                  <p style="background:#f3f4f6;padding:10px;">Giao đến: ${ShippingAddress}</p>
+                  <p>Phương thức TT: <b>${PaymentMethod}</b></p>
+                  <p>Trân trọng,<br/>FashionStyle Team</p>
+                 </div>`,
+        });
+      })
+      .catch((err) => console.warn("⚠️ Email gửi lỗi (nền):", err.message));
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("❌ Lỗi khi checkout:", error.message, error.sqlMessage || "");
@@ -242,11 +276,19 @@ router.post("/guest-checkout", async (req, res) => {
     await connection.beginTransaction();
 
     let totalAmount = 0;
-    // Lấy thông tin giá hiện tại từ database để bảo mật
+    // Lấy giá + DiscountPercent từ DB để bảo mật — áp dụng discount trước khi tính
     for (let i = 0; i < cartItems.length; i++) {
-      const [prodRows] = await connection.query('SELECT Price FROM Products WHERE ProductID = ?', [cartItems[i].ProductID]);
+      const [prodRows] = await connection.query(
+        'SELECT Price, COALESCE(DiscountPercent, 0) AS DiscountPercent FROM Products WHERE ProductID = ?',
+        [cartItems[i].ProductID]
+      );
       if (prodRows.length === 0) throw new Error(`Sản phẩm ${cartItems[i].ProductID} không tồn tại`);
-      cartItems[i].Price = prodRows[0].Price;
+      const basePrice = prodRows[0].Price;
+      const discountPct = prodRows[0].DiscountPercent || 0;
+      // Lưu giá đã giảm vào OrderDetails
+      cartItems[i].Price = discountPct > 0
+        ? Math.round(basePrice * (1 - discountPct / 100))
+        : basePrice;
       totalAmount += cartItems[i].Quantity * cartItems[i].Price;
     }
 
@@ -293,24 +335,22 @@ router.post("/guest-checkout", async (req, res) => {
       });
     } catch (e) { console.warn("Lỗi gửi mail GUEST to Admin", e.message); }
 
-    // Gửi email xác nhận cho Khách
-    if (CustomerEmail) {
-       try {
-         await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: CustomerEmail,
-            subject: `[FashionStyle] Xác nhận đặt hàng #${orderId}`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
-                    <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
-                    <p>Xin chào ${CustomerName},</p>
-                    <p>Đơn hàng <b>#${orderId}</b> của bạn trị giá <b>${totalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. 
-                    Chúng tôi sẽ sớm liên hệ qua số điện thoại <b>${CustomerPhone}</b> để giao hàng đến địa chỉ <i>${ShippingAddress}</i>.</p>
-                   </div>`
-         });
-       } catch (e) { console.warn("Lỗi gửi mail GUEST to Khách", e.message); }
-    }
-
+    // Trả response ngay — email gửi nền
     res.status(201).json({ success: true, message: "Đặt hàng thành công.", orderId, status: initialStatus });
+
+    // Gửi email xác nhận cho Khách (fire-and-forget)
+    if (CustomerEmail) {
+      transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: CustomerEmail,
+        subject: `[FashionStyle] Xác nhận đặt hàng #${orderId}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
+                <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
+                <p>Xin chào ${CustomerName},</p>
+                <p>Đơn hàng <b>#${orderId}</b> trị giá <b>${totalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. Chúng tôi sẽ sớm liên hệ qua số <b>${CustomerPhone}</b> để giao hàng đến <i>${ShippingAddress}</i>.</p>
+               </div>`,
+      }).catch(e => console.warn("⚠️ Email guest lỗi:", e.message));
+    }
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("Lỗi guest checkout:", error);
@@ -341,6 +381,31 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// [ADMIN 1 + 3] Lấy đơn hàng của 1 user cụ thể — dùng cho trang Users của Admin
+// GET /api/orders/admin/user/:userId
+router.get("/admin/user/:userId", requireAuth, requireAdminLevel3, async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const sql = `
+      SELECT 
+        o.OrderID, o.OrderDate, o.TotalAmount, o.Status, 
+        o.ShippingAddress, o.PaymentMethod,
+        COUNT(od.ProductID) AS itemCount
+      FROM Orders o
+      LEFT JOIN OrderDetails od ON o.OrderID = od.OrderID
+      WHERE o.UserID = ?
+      GROUP BY o.OrderID, o.OrderDate, o.TotalAmount, o.Status, 
+               o.ShippingAddress, o.PaymentMethod
+      ORDER BY o.OrderDate DESC
+    `;
+    const [orders] = await pool.query(sql, [userId]);
+    res.status(200).json({ success: true, data: orders });
+  } catch (error) {
+    console.error("Lỗi khi lấy đơn hàng của user:", error);
+    res.status(500).json({ error: "Lỗi server", detail: error.message });
+  }
+});
+
 // [ADMIN 1 + 3] Xem tất cả đơn hàng — requireAdminLevel3
 // GET /api/orders/admin
 router.get("/admin", requireAuth, requireAdminLevel3, async (req, res) => {
@@ -363,7 +428,7 @@ router.get("/admin", requireAuth, requireAdminLevel3, async (req, res) => {
 // PUT /api/orders/admin/:id/approve
 router.put("/admin/:id/approve", requireAuth, requireAdminLevel1, async (req, res) => {
   const orderId = req.params.id;
-  const { Action, Reason } = req.body; // Action: 'APPROVE' | 'REJECT'
+  const { Action, Reason } = req.body;
 
   if (!Action || !["APPROVE", "REJECT"].includes(Action.toUpperCase())) {
     return res.status(400).json({ message: "Action phải là 'APPROVE' hoặc 'REJECT'." });
@@ -379,65 +444,56 @@ router.put("/admin/:id/approve", requireAuth, requireAdminLevel1, async (req, re
       return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng." });
     }
 
-    // Lấy thông tin đơn hàng để gửi email
-    const [orderRows] = await pool.query(
-      `SELECT o.*, u.FullName, u.Email FROM Orders o JOIN Users u ON o.UserID = u.UserID WHERE o.OrderID = ?`,
-      [orderId]
-    );
-    const order = orderRows[0];
+    // Trả response ngay — email gửi nền (fire-and-forget)
+    res.status(200).json({
+      success: true,
+      message: `Đơn hàng #${orderId} đã ${Action.toUpperCase() === "APPROVE" ? "được duyệt" : "bị từ chối"}.`,
+      newStatus,
+    });
 
-    // 📧 Gửi email cho khách hàng
-    if (order?.Email) {
-      const isApproved = Action.toUpperCase() === "APPROVE";
-      try {
-        await transporter.sendMail({
+    // 📧 Gửi email nền (không chặn response)
+    const isApproved = Action.toUpperCase() === "APPROVE";
+    pool.query(
+      `SELECT o.*, u.FullName, u.Email FROM Orders o LEFT JOIN Users u ON o.UserID = u.UserID WHERE o.OrderID = ?`,
+      [orderId]
+    ).then(([orderRows]) => {
+      const order = orderRows[0];
+      const promises = [];
+      if (order?.Email) {
+        promises.push(transporter.sendMail({
           from: process.env.EMAIL_USER,
           to: order.Email,
           subject: isApproved
             ? `[FashionStyle] ✅ Đơn hàng #${orderId} đã được xác nhận!`
             : `[FashionStyle] ❌ Đơn hàng #${orderId} đã bị từ chối`,
           html: isApproved
-            ? `<h3>Xin chào ${order.FullName}! 🎉</h3><p>Đơn hàng <b>#${orderId}</b> của bạn đã được <b style="color:green;">xác nhận</b> và đang được Admin chuẩn bị giao.</p>`
-            : `<h3>Xin chào ${order.FullName},</h3><p>Rất tiếc! Đơn hàng <b>#${orderId}</b> đã bị <b style="color:red;">từ chối</b>. Lý do: <i>${Reason || "Không có lý do cụ thể"}</i>.</p><p>Bạn có thể liên hệ chúng tôi để được hỗ trợ.</p>`,
-        });
-      } catch (mailErr) {
-        console.warn("⚠️  Không gửi được email cho khách:", mailErr.message);
+            ? `<h3>Xin chào ${order.FullName}! 🎉</h3><p>Đơn hàng <b>#${orderId}</b> đã được <b style="color:green;">xác nhận</b> và đang được chuẩn bị giao.</p>`
+            : `<h3>Xin chào ${order.FullName},</h3><p>Rất tiếc! Đơn hàng <b>#${orderId}</b> đã bị <b style="color:red;">từ chối</b>. Lý do: <i>${Reason || "Không có lý do cụ thể"}</i>.</p>`,
+        }));
       }
-    }
-
-    // 📧 Thông báo cho Admin 3 kết quả duyệt
-    try {
-      await transporter.sendMail({
+      promises.push(transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: "admin3@fashionstyle.com",
-        subject: `[FashionStyle] Đơn #${orderId} → ${Action.toUpperCase() === "APPROVE" ? "ĐÃ DUYỆT ✅" : "BỊ TỪ CHỐI ❌"}`,
-        html: `<p>Đơn hàng <b>#${orderId}</b> vừa được Admin Chính <b>${Action.toUpperCase() === "APPROVE" ? "duyệt" : "từ chối"}</b>.</p>${Reason ? `<p>Lý do: ${Reason}</p>` : ""}<p>Trạng thái mới: <b>${newStatus}</b></p>`,
-      });
-    } catch (mailErr) {
-      console.warn("⚠️  Không gửi được email cho Admin3:", mailErr.message);
-    }
+        subject: `[FashionStyle] Đơn #${orderId} → ${isApproved ? "ĐÃ DUYỆT ✅" : "Bị TỪ CHỐI ❌"}`,
+        html: `<p>Đơn hàng <b>#${orderId}</b> vừa được Admin Chính <b>${isApproved ? "duyệt" : "từ chối"}</b>.</p>${Reason ? `<p>Lý do: ${Reason}</p>` : ""}<p>Trạng thái mới: <b>${newStatus}</b></p>`,
+      }));
+      return Promise.all(promises);
+    }).catch(err => console.warn("⚠️ Email duyệt đơn lỗi (nền):", err.message));
 
-    // 📝 Ghi log hoạt động Admin
-    try {
-      const adminId = req.user.userId;
-      await pool.query(
-        "INSERT INTO admin_activity_logs (AdminID, ActionType, TableName, Details) VALUES (?, ?, ?, ?)",
-        [adminId, Action.toUpperCase() === "APPROVE" ? "APPROVE_ORDER" : "REJECT_ORDER", "Orders", `${Action.toUpperCase() === "APPROVE" ? "Duyệt" : "Từ chối"} đơn hàng #${orderId}${Reason ? `. Lý do: ${Reason}` : ""}`]
-      );
-    } catch (logErr) {
-      console.warn("⚠️ Không ghi được log duyệt đơn:", logErr.message);
-    }
+    // 📝 Ghi log (fire-and-forget)
+    const adminId = req.user.userId;
+    pool.query(
+      "INSERT INTO admin_activity_logs (AdminID, ActionType, TableName, Details) VALUES (?, ?, ?, ?)",
+      [adminId, isApproved ? "APPROVE_ORDER" : "REJECT_ORDER", "Orders",
+       `${isApproved ? "Duyệt" : "Từ chối"} đơn hàng #${orderId}${Reason ? `. Lý do: ${Reason}` : ""}`]
+    ).catch(e => console.warn("⚠️ Ghi log lỗi:", e.message));
 
-    res.status(200).json({
-      success: true,
-      message: `Đơn hàng #${orderId} đã ${Action.toUpperCase() === "APPROVE" ? "được duyệt" : "bị từ chối"}.`,
-      newStatus,
-    });
   } catch (error) {
     console.error("Lỗi khi duyệt đơn hàng:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 });
+
 
 // [ADMIN 1 + 3] Cập nhật trạng thái vận chuyển — requireAdminLevel3
 // PUT /api/orders/admin/:id/status

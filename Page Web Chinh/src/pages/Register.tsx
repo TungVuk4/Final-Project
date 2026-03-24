@@ -3,12 +3,35 @@ import { HiOutlineEye, HiOutlineEyeSlash } from "react-icons/hi2";
 import customFetch from "../axios/custom";
 import toast from "react-hot-toast";
 import { useState } from "react";
+import { useSystemConfig } from "../hooks/useSystemConfig";
 
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const { config } = useSystemConfig();
+
+  // Đóng đăng ký Customer mới
+  if (config.close_registration) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 to-stone-100 px-4">
+        <div className="bg-white rounded-2xl shadow-xl px-8 py-12 max-w-md w-full text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-orange-50 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-light tracking-widest text-stone-800 uppercase mb-3">Fashion</h2>
+          <p className="text-stone-700 font-medium mb-2">Đăng ký tạm thời bị đóng</p>
+          <p className="text-stone-500 text-sm mb-8">Hệ thống hiện đang tạm dừng nhận thành viên mới. Vui lòng quay lại sau.</p>
+          <Link to="/login" className="inline-block bg-stone-800 hover:bg-stone-900 text-white font-medium py-3 px-8 rounded-lg transition-colors">
+            Quay lại Đăng nhập
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

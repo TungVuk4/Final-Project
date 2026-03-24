@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { checkCheckoutFormData } from "../utils/checkCheckoutFormData";
 import { getImageUrl } from "../utils/formatImageUrl";
+import { formatCurrency } from "../utils/formatCurrency";
 import { getAuthToken } from "../features/auth/authSlice";
 
 const paymentMethods = [
@@ -424,7 +425,7 @@ const Checkout = () => {
 
                       <div className="flex flex-1 items-end justify-between pt-2">
                         <p className="mt-1 text-sm font-medium text-gray-900">
-                          ${product?.price}
+                          {formatCurrency(product?.price || 0)}
                         </p>
 
                         <div className="ml-4">
@@ -441,25 +442,25 @@ const Checkout = () => {
                 <div className="flex items-center justify-between">
                   <dt className="text-sm">Subtotal</dt>
                   <dd className="text-sm font-medium text-gray-900">
-                    ${subtotal}
+                    {formatCurrency(subtotal)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
                   <dt className="text-sm">Shipping</dt>
-                  <dd className="text-sm font-medium text-gray-900">
-                    ${subtotal ? 5 : 0}
+                  <dd className="text-sm font-medium text-green-600">
+                    {subtotal ? "Miễn phí" : formatCurrency(0)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-sm">Taxes</dt>
+                  <dt className="text-sm">Taxes (10%)</dt>
                   <dd className="text-sm font-medium text-gray-900">
-                    ${subtotal ? subtotal / 5 : 0}
+                    {formatCurrency(subtotal ? subtotal * 0.1 : 0)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-200 pt-6">
                   <dt className="text-base font-medium">Total</dt>
                   <dd className="text-base font-medium text-gray-900">
-                    ${subtotal ? subtotal + 5 + subtotal / 5 : 0}
+                    {formatCurrency(subtotal ? subtotal * 1.1 : 0)}
                   </dd>
                 </div>
               </dl>

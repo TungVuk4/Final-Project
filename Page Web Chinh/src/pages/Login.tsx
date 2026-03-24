@@ -39,6 +39,31 @@ const Login = () => {
         token,
       }));
 
+      // Đồng bộ giỏ hàng Local (khách vãng lai) lên Server
+      const localCartStr = localStorage.getItem("fashionCart");
+      if (localCartStr) {
+        try {
+          const localCart = JSON.parse(localCartStr);
+          if (localCart.productsInCart && localCart.productsInCart.length > 0) {
+            for (const item of localCart.productsInCart) {
+              if (item.productId) {
+                try {
+                  await customFetch.post(
+                    "/cart/add",
+                    { productId: item.productId, quantity: item.quantity, size: item.size || "xs" },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                } catch (e) {
+                  console.error("Lỗi đồng bộ giỏ hàng từng phần:", e);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Lỗi parse giỏ hàng local:", e);
+        }
+      }
+
       toast.success(`Chào mừng trở lại, ${user.FullName}!`);
       navigate("/user-profile");
     } catch (err: any) {

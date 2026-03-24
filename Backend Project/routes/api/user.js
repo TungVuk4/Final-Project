@@ -230,7 +230,7 @@ router.put("/change-password", requireAuth, async (req, res) => {
 // ----------------------------------------------------------------
 router.get("/admin/permissions", requireAuth, requireAdminLevel1, async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT Email, CanDeleteProduct, IsActive FROM Users WHERE Email IN ('admin2@fashionstyle.com', 'admin3@fashionstyle.com')");
+    const [rows] = await pool.query("SELECT Email, CanDeleteProduct, CanAccessCustomerInfo, IsActive FROM Users WHERE Email IN ('admin2@fashionstyle.com', 'admin3@fashionstyle.com')");
     
     const admin2 = rows.find(r => r.Email === 'admin2@fashionstyle.com');
     const admin3 = rows.find(r => r.Email === 'admin3@fashionstyle.com');
@@ -238,6 +238,7 @@ router.get("/admin/permissions", requireAuth, requireAdminLevel1, async (req, re
     res.status(200).json({ 
       success: true, 
       admin2CanDelete: !!admin2?.CanDeleteProduct,
+      admin3CanAccessInfo: admin3?.CanAccessCustomerInfo !== 0,
       admin2IsActive: admin2?.IsActive !== 0,
       admin3IsActive: admin3?.IsActive !== 0
     });
@@ -248,9 +249,14 @@ router.get("/admin/permissions", requireAuth, requireAdminLevel1, async (req, re
 });
 
 router.put("/admin/permissions", requireAuth, requireAdminLevel1, async (req, res) => {
-  const { admin2CanDelete } = req.body;
+  const { admin2CanDelete, admin3CanAccessInfo } = req.body;
   try {
-    await pool.query("UPDATE Users SET CanDeleteProduct = ? WHERE Email = 'admin2@fashionstyle.com'", [admin2CanDelete ? 1 : 0]);
+    if (admin2CanDelete !== undefined) {
+      await pool.query("UPDATE Users SET CanDeleteProduct = ? WHERE Email = 'admin2@fashionstyle.com'", [admin2CanDelete ? 1 : 0]);
+    }
+    if (admin3CanAccessInfo !== undefined) {
+      await pool.query("UPDATE Users SET CanAccessCustomerInfo = ? WHERE Email = 'admin3@fashionstyle.com'", [admin3CanAccessInfo ? 1 : 0]);
+    }
     res.status(200).json({ success: true, message: "Cập nhật quyền thành công" });
   } catch(error) { 
     console.error("Lỗi update permissions:", error);

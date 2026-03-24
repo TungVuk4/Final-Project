@@ -445,7 +445,7 @@ export default function Product() {
         style={{ width: "95vw", maxWidth: "560px" }}
         header={
           <span className="font-black text-xl text-white">
-            {isEdit ? "✏️ Cập nhật sản phẩm" : "✨ Thêm sản phẩm mới"}
+             {isEdit ? `✏️ ${t("edit_product_title", "Cập nhật sản phẩm")}` : `✨ ${t("add_product_title", "Thêm sản phẩm mới")}`}
           </span>
         }
         modal
@@ -623,9 +623,9 @@ export default function Product() {
         style={{ background: "linear-gradient(180deg, #1a1a35 0%, #0f0f23 100%)" }}
         header={
           <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-            <span className="font-black text-xl text-white">Bộ lọc</span>
+            <span className="font-black text-xl text-white">{t("filters", "Bộ lọc")}</span>
             <button onClick={handleClearFilters} className="text-xs font-bold text-purple-400 hover:text-purple-300 underline">
-              Xóa tất cả
+              {t("clear", "Xóa tất cả")}
             </button>
           </div>
         }
@@ -714,14 +714,14 @@ export default function Product() {
             className="flex-1 py-3 rounded-xl font-bold text-sm border transition-all"
             style={{ color: "#9ca3af", borderColor: "rgba(255,255,255,0.1)", background: "transparent" }}
           >
-            Đóng
+            {t("close_btn", "Đóng")}
           </button>
           <button
             onClick={handleApplyFilters}
             className="flex-1 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
           >
-            Áp dụng
+            {t("apply", "Áp dụng")}
           </button>
         </div>
       </Sidebar>

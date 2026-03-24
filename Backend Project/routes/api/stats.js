@@ -97,7 +97,7 @@ router.get('/dashboard/overview', async (req, res) => {
       `SELECT COUNT(*) as totalOrders FROM orders`
     );
     const [[pendingResult]] = await pool.query(
-      `SELECT COUNT(*) as pendingOrders FROM orders WHERE Status IN ('PENDING_COD', 'AWAITING_PAYMENT', 'Chờ xử lý')`
+      `SELECT COUNT(*) as pendingOrders FROM orders WHERE Status IN ('PENDING_COD', 'AWAITING_PAYMENT', 'PROCESSING', 'Chờ xử lý')`
     );
     const [[shippingResult]] = await pool.query(
       `SELECT COUNT(*) as shippingOrders FROM orders WHERE Status IN ('SHIPPING', 'Đang giao')`

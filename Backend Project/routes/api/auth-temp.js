@@ -65,6 +65,38 @@ router.post("/register", async (req, res) => {
       success: true,
       message: "Đăng ký thành công và đã khởi tạo giỏ hàng.",
     });
+
+    // ----------------------------------------------------------------
+    // GỬI EMAIL THÔNG BÁO ĐĂNG KÝ THÀNH CÔNG (Non-blocking)
+    // ----------------------------------------------------------------
+    try {
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: Email,
+        subject: "[FashionStyle] Đăng ký tài khoản thành công - Bảo mật tài khoản",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #2c3e50; text-align: center;">Chào mừng đến với FashionStyle! 🎉</h2>
+            <p>Xin chào <b>${FullName}</b>,</p>
+            <p>Chúc mừng bạn đã đăng ký tài khoản thành công tại cửa hàng của chúng tôi.</p>
+            <p>Việc hệ thống gửi email này nhằm <b>xác minh địa chỉ hòm thư của bạn là chính xác</b> và hỗ trợ chúng tôi bảo vệ tài khoản của bạn khỏi rủi ro bị đánh cắp.</p>
+            <p><b>Thông tin tài khoản:</b></p>
+            <ul>
+              <li><b>Tên hiển thị:</b> ${FullName}</li>
+              <li><b>Email đăng nhập:</b> ${Email}</li>
+            </ul>
+            <p>Hãy bắt đầu trải nghiệm mua sắm ngay lập tức bằng cách <a href="http://localhost:5173/login" style="color: #3498db;">đăng nhập vào hệ thống</a>.</p>
+            <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+            <p style="font-size: 13px; color: #7f8c8d;">Nếu bạn không thực hiện đăng ký này, vui lòng bỏ qua đoạn thư này hoặc liên hệ với bộ phận CSKH của FashionStyle.</p>
+            <p>Trân trọng,<br><b>Đội ngũ FashionStyle</b></p>
+          </div>
+        `
+      };
+      transporter.sendMail(mailOptions).catch(err => console.error("Lỗi khi gửi email chào mừng:", err));
+    } catch (mailError) {
+      console.error("Lỗi cấu hình khi gửi email đăng ký:", mailError);
+    }
+
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("Lỗi đăng ký:", error);
@@ -82,7 +114,7 @@ router.post("/login", async (req, res) => {
   try {
     // XÓA 'Avatar' khỏi danh sách SELECT bên dưới
     const [rows] = await pool.query(
-      "SELECT UserID, FullName, Email, PasswordHash, Role, IsActive FROM Users WHERE Email = ?",
+      "SELECT UserID, FullName, Email, PasswordHash, Role, IsActive, CanAccessCustomerInfo FROM Users WHERE Email = ?",
       [Email]
     );
 
@@ -122,6 +154,7 @@ router.post("/login", async (req, res) => {
         role: user.Role,
         email: user.Email || Email,
         avatar: null, // Trả về null vì DB chưa có cột này
+        canAccessCustomerInfo: user.CanAccessCustomerInfo !== 0,
       },
     });
   } catch (error) {

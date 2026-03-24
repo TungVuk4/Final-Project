@@ -55,31 +55,22 @@ const ProductGridWrapper = ({
       // Limit the number of products to be displayed
       if (limit) {
         setProducts(searchedProducts.slice(0, limit));
-        // Set the number of products being displayed
-        // This will be displayed in the ShowingPagination component
         dispatch(setShowingProducts(searchedProducts.slice(0, limit).length));
-        // If page is provided, slice the products based on the page number
-        // this will be used for pagination
-      } else if (page) {
-        setProducts(searchedProducts.slice(0, page * 9));
-        // Set the number of products being displayed
-        // This will be displayed in the ShowingPagination component
-        dispatch(
-          setShowingProducts(searchedProducts.slice(0, page * 9).length)
-        );
-        // If no limit or page is provided, display all the products
+      } else if (_page) {
+        setProducts(searchedProducts.slice(0, _page * 9));
+        dispatch(setShowingProducts(searchedProducts.slice(0, _page * 9).length));
       } else {
         setProducts(searchedProducts);
-        // Set the number of products being displayed
         dispatch(setShowingProducts(searchedProducts.length));
       }
     },
-    []
+    [category, limit]
   );
 
   useEffect(() => {
     getSearchedProducts(searchQuery || "", sortCriteria || "", page || 1);
-  }, [searchQuery, sortCriteria, page, category]);
+  }, [searchQuery, sortCriteria, page, category, getSearchedProducts]);
+
 
   // Clone the children and pass the products as props to the children
   // This will cause the children to re-render with the new products

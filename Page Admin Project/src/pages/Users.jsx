@@ -30,10 +30,10 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function formatCurrency(n) {
-  if (!n) return "0₫";
-  return Number(n).toLocaleString("vi-VN") + "₫";
-}
+const formatCurrency = (n) => {
+  if (!n) return "0$";
+  return new Intl.NumberFormat("en-US").format(n) + "$";
+};
 
 export default function User() {
   const { t } = useTranslation();

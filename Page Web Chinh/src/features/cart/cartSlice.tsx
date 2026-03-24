@@ -44,6 +44,10 @@ export const cartSlice = createSlice({
       );
       cartSlice.caseReducers.calculateTotalPrice(state);
     },
+    setCartItems: (state, action: PayloadAction<ProductInCart[]>) => {
+      state.productsInCart = action.payload;
+      cartSlice.caseReducers.calculateTotalPrice(state);
+    },
     updateProductQuantity: (
       state,
       action: PayloadAction<{ id: string; quantity: number }>
@@ -77,6 +81,7 @@ export const cartSlice = createSlice({
 export const {
   addProductToTheCart,
   removeProductFromTheCart,
+  setCartItems,
   updateProductQuantity,
   calculateTotalPrice,
   clearCart,

@@ -1,46 +1,74 @@
 import SocialMediaFooter from "./SocialMediaFooter";
-import { HiChevronDown } from "react-icons/hi2";
+import { Link } from "react-router-dom";
+import { HiArrowUpRight } from "react-icons/hi2";
 
+const footerLinks = {
+  "Client Service": ["After-sale Service", "Free Insurance", "Returns & Exchanges", "FAQ"],
+  "Our Brand": ["The Company", "The Excellence", "International Awards", "Our Story"],
+  "Collections": ["Luxury Edition", "Special Edition", "Summer Edition", "Unique Collection"],
+};
 
 const Footer = () => {
   return (
     <>
       <SocialMediaFooter />
-      <footer className="max-w-screen-2xl mx-auto border-b-8 border-secondaryBrown px-5 max-[400px]:px-3">
-        <div className="flex justify-center gap-24 text-center mt-12 max-[800px]:flex-col max-[800px]:gap-10">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-2xl font-bold max-sm:text-xl">Client Service</h3>
-            <p className="text-lg max-sm:text-base">After-sale Service</p>
-            <p className="text-lg max-sm:text-base">Free Insurance</p>
+      
+      <footer className="bg-stone-900 text-stone-300">
+        {/* Main Footer */}
+        <div className="max-w-screen-2xl mx-auto px-5 max-[400px]:px-3 pt-16 pb-10">
+          {/* Top row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-12 border-b border-stone-800 pb-12">
+            {/* Brand column */}
+            <div className="flex flex-col gap-4">
+              <h2
+                className="text-4xl font-light text-white tracking-[0.2em]"
+                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              >
+                FASHION
+              </h2>
+              <p className="text-sm text-stone-400 leading-relaxed">
+                Premium luxury fashion for the modern connoisseur. Crafted with precision, designed for excellence.
+              </p>
+              <Link
+                to="/shop"
+                className="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors group"
+              >
+                Explore Collection
+                <HiArrowUpRight className="text-lg transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
+            </div>
+
+            {/* Links */}
+            {Object.entries(footerLinks).map(([title, links]) => (
+              <div key={title} className="flex flex-col gap-3">
+                <h3 className="text-white text-sm font-semibold tracking-widest uppercase mb-1">{title}</h3>
+                {links.map((link) => (
+                  <span
+                    key={link}
+                    className="text-stone-400 hover:text-amber-400 text-sm transition-colors cursor-pointer"
+                  >
+                    {link}
+                  </span>
+                ))}
+              </div>
+            ))}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <h3 className="text-2xl font-bold max-sm:text-xl">Our Brand</h3>
-            <p className="text-lg max-sm:text-base">The Company</p>
-            <p className="text-lg max-sm:text-base">The Excellence</p>
-            <p className="text-lg max-sm:text-base">International Awards</p>
-            <p className="text-lg max-sm:text-base">Our Story</p>
+          {/* Bottom row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-stone-500 text-sm">© 2026 Fashion Studio. All rights reserved.</p>
+            <div className="flex items-center gap-6">
+              {["Cookie Policy", "Privacy Policy", "Legal Notes"].map((item) => (
+                <span key={item} className="text-stone-500 hover:text-stone-300 text-xs transition-colors cursor-pointer tracking-wide">
+                  {item}
+                </span>
+              ))}
+            </div>
           </div>
-
-          <div className="flex flex-col gap-1">
-            <h3 className="text-2xl font-bold max-sm:text-xl">Luxury Clothing</h3>
-            <p className="text-lg max-sm:text-base">Special Edition</p>
-            <p className="text-lg max-sm:text-base">Summer Edition</p>
-            <p className="text-lg max-sm:text-base">Unique Collection</p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-8 my-20">
-          <p className="flex justify-center items-center text-2xl gap-2 max-sm:text-xl">Worldwide / English <HiChevronDown /></p>
-          <h2 className="text-6xl font-light text-center max-sm:text-5xl">FASHION</h2>
-          <p className="text-base text-center max-sm:text-sm">All rights reserved ©2024</p>
-          <ul className="flex justify-center items-center gap-7 text-base max-sm:text-sm max-[350px]:flex-col max-[350px]:gap-5">
-            <li>Cookie Policy</li>
-            <li>Privacy Policy</li>
-            <li>Legal Notes</li>
-          </ul>
         </div>
       </footer>
     </>
   );
 };
+
 export default Footer;

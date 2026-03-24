@@ -8,8 +8,9 @@ import { Skeleton } from "primereact/skeleton";
 const API_URL = "http://localhost:8080/api";
 
 function formatCurrency(amount) {
-  if (!amount) return "0₫";
-  return Number(amount).toLocaleString("vi-VN") + "₫";
+  const usd = Number(amount);
+  if (!usd) return "0$";
+  return new Intl.NumberFormat("en-US").format(usd) + "$";
 }
 
 function formatNumber(num) {
@@ -33,7 +34,15 @@ export default function Dashboard() {
   
   const [pieData, setPieData] = useState([]);
   const [barData, setBarData] = useState([]);
-  const [adminLogs, setAdminLogs] = useState([]); // New state for admin logs
+  const [adminLogs, setAdminLogs] = useState([]);
+
+  // Cấu hình hệ thống (Admin 1)
+  const [sysConfig, setSysConfig] = useState({
+    maintenance_mode: false,
+    telegram_alerts: false,
+    close_registration: false,
+  });
+  const [sysConfigLoading, setSysConfigLoading] = useState({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -44,19 +53,15 @@ export default function Dashboard() {
         const [ovRes, chRes, logRes] = await Promise.all([
           axios.get(`${API_URL}/stats/dashboard/overview`, config),
           axios.get(`${API_URL}/stats/dashboard/charts`, config),
-          axios.get(`${API_URL}/admin-logs`, config) // Fetch admin logs
+          axios.get(`${API_URL}/admin-logs`, config)
         ]);
         
-        if (ovRes.data?.success) {
-          setStats(ovRes.data.data);
-        }
+        if (ovRes.data?.success) setStats(ovRes.data.data);
         if (chRes.data?.success) {
           setPieData(chRes.data.data.pieChart || []);
           setBarData(chRes.data.data.barChart || []);
         }
-        if (logRes.data?.success) {
-          setAdminLogs(logRes.data.data.slice(0, 10)); // Only take the 10 most recent logs
-        }
+        if (logRes.data?.success) setAdminLogs(logRes.data.data.slice(0, 10));
       } catch (error) {
         console.error("Lỗi load dashboard:", error);
       } finally {
@@ -66,6 +71,30 @@ export default function Dashboard() {
 
     loadData();
   }, [token]);
+
+  // Load system config cho Admin 1
+  useEffect(() => {
+    const currentUser = useAuthStore.getState().user;
+    if (currentUser?.email !== "admin1@fashionstyle.com") return;
+    axios.get(`${API_URL}/system-config`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => { if (res.data?.success) setSysConfig(res.data.data); })
+      .catch(() => {});
+  }, [token]);
+
+  const handleSysConfigToggle = async (key) => {
+    const newValue = !sysConfig[key];
+    setSysConfigLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      await axios.put(`${API_URL}/system-config`, { key, value: newValue },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSysConfig(prev => ({ ...prev, [key]: newValue }));
+    } catch (e) {
+      console.error("Lỗi cập nhật cấu hình:", e);
+    } finally {
+      setSysConfigLoading(prev => ({ ...prev, [key]: false }));
+    }
+  };
 
   const getActionCfg = (action) => {
     const types = {
@@ -137,7 +166,7 @@ export default function Dashboard() {
         titleFont: { size: 14, family: 'Inter' },
         bodyFont: { size: 13, family: 'Inter' },
         callbacks: {
-          label: (ctx) => ` Doanh thu: ${Number(ctx.raw).toLocaleString("vi-VN")}₫`
+          label: (ctx) => ` Doanh thu: ${new Intl.NumberFormat("en-US").format(Number(ctx.raw))}$`
         }
       }
     },
@@ -151,7 +180,7 @@ export default function Dashboard() {
         ticks: { 
           font: { family: 'Inter', size: 12 }, 
           color: '#6B7280',
-          callback: (value) => value >= 1000000 ? (value / 1000000) + 'M' : value >= 1000 ? (value / 1000) + 'K' : value
+          callback: (value) => (value >= 1000000 ? (value / 1000000) + 'M' : value >= 1000 ? (value / 1000) + 'K' : value) + '$'
         }
       }
     },
@@ -195,37 +224,35 @@ export default function Dashboard() {
     }
   ];
 
-  if (isAdmin1) {
-    widgets = widgets.filter(w => w.title !== t("acc_orders", "Tổng đơn đặt hàng"));
-  }
+  // (Đã xóa bộ lọc ẩn Tổng đơn hàng cho Admin 1 theo yêu cầu mới)
 
   if (isOpsAdmin) {
     widgets = [
       {
-        title: "Đơn hàng mới",
+        title: t("new_order_widget", "Đơn hàng mới"),
         value: stats.pendingOrders > 0 ? (stats.pendingOrders > 2 ? "2+" : stats.pendingOrders) : "0",
-        desc: "Cần xác nhận ngay",
+        desc: t("new_order_desc", "Cần xác nhận ngay"),
         icon: "pi-bell",
         iconBg: "bg-gradient-to-br from-orange-400 to-red-500 shadow-red-500/40"
       },
       {
-        title: "Đang vận chuyển",
+        title: t("shipping_widget", "Đang vận chuyển"),
         value: formatNumber(stats.shippingOrders),
-        desc: "Đơn hàng trên đường đi",
+        desc: t("shipping_desc", "Đơn hàng trên đường đi"),
         icon: "pi-truck",
         iconBg: "bg-gradient-to-br from-blue-400 to-indigo-600 shadow-indigo-500/40"
       },
       {
-        title: "Khách hàng của tôi",
+        title: t("my_customers_widget", "Khách hàng của tôi"),
         value: formatNumber(stats.totalUsers),
-        desc: "Tổng khách hàng",
+        desc: t("total_customers_desc", "Tổng khách hàng"),
         icon: "pi-user",
         iconBg: "bg-gradient-to-br from-teal-400 to-emerald-600 shadow-emerald-500/40"
       },
       {
-        title: "Đã hoàn thành",
+        title: t("completed_widget", "Đã hoàn thành"),
         value: formatNumber(stats.completedOrders),
-        desc: "Đơn hàng thành công",
+        desc: t("completed_desc", "Đơn hàng thành công"),
         icon: "pi-check-circle",
         iconBg: "bg-gradient-to-br from-cyan-400 to-blue-500 shadow-blue-500/40"
       }
@@ -234,13 +261,23 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 font-inter pb-10">
+      {isOpsAdmin && currentUser?.canAccessCustomerInfo === false ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-white rounded-3xl p-10 shadow-sm border border-red-100">
+          <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6">
+              <i className="pi pi-lock text-5xl"></i>
+          </div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Quyền hoạt động đã bị tạm dừng</h1>
+          <p className="text-slate-500 mt-4 font-medium max-w-md mx-auto leading-relaxed">Tài khoản Admin Vận Hành của bạn hiện đang bị giới hạn quyền truy cập vào thông tin khách hàng và đơn hàng. Vui lòng liên hệ Admin Chính để được cấp lại quyền.</p>
+        </div>
+      ) : (
+      <>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
             {t("welcome_back", "Chào mừng trở lại! 👋")}
           </h1>
           <p className="text-gray-500 mt-2 text-sm font-medium">
-             {isOpsAdmin ? "Hệ thống vận hành đơn hàng FashionStyle." : t("dashboard_desc", "Bảng điều khiển thống kê tổng quan của hệ thống.")}
+             {isOpsAdmin ? t("ops_dashboard_desc", "Hệ thống vận hành đơn hàng FashionStyle.") : t("dashboard_desc", "Bảng điều khiển thống kê tổng quan của hệ thống.")}
           </p>
         </div>
       </div>
@@ -253,7 +290,7 @@ export default function Dashboard() {
                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                  <div className="absolute top-2 right-4 flex items-center gap-1.5 px-3 py-1 bg-black/20 rounded-full backdrop-blur-md">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span className="text-[10px] font-bold tracking-widest uppercase">ONLINE</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase">{t("status_online", "ONLINE")}</span>
                  </div>
                  
                  <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 shadow-inner">
@@ -261,10 +298,10 @@ export default function Dashboard() {
                  </div>
                  
                  <div className="mb-2">
-                    <span className="px-2.5 py-1 rounded-lg bg-white/10 text-[10px] font-black tracking-tighter backdrop-blur-md">LEVEL 3</span>
-                    <h2 className="text-2xl font-black mt-2 leading-tight">Admin Vận Hành</h2>
+                    <span className="px-2.5 py-1 rounded-lg bg-white/10 text-[10px] font-black tracking-tighter backdrop-blur-md">{t("level_3", "LEVEL 3")}</span>
+                    <h2 className="text-2xl font-black mt-2 leading-tight">{t("role_admin3_title", "Admin Vận Hành")}</h2>
                  </div>
-                 <p className="text-emerald-50/80 text-sm font-medium">Xử lý đơn hàng & chăm sóc khách...</p>
+                 <p className="text-emerald-50/80 text-sm font-medium">{t("role_admin3_sub", "Xử lý đơn hàng & chăm sóc khách hàng")}</p>
                  
                  <div className="mt-8 flex items-center gap-3 p-3 bg-black/20 rounded-2xl backdrop-blur-md border border-white/10">
                     <i className="pi pi-envelope text-emerald-200"></i>
@@ -276,15 +313,15 @@ export default function Dashboard() {
                  <div className="space-y-6">
                     <div>
                        <h3 className="text-xs font-black text-emerald-600 uppercase tracking-[2px] mb-4 flex items-center gap-2">
-                          <i className="pi pi-check-circle"></i> QUYỀN HẠN
+                          <i className="pi pi-check-circle"></i> {t("permissions_label", "QUYỀN HẠN")}
                        </h3>
                        <ul className="space-y-4">
                           {[
-                             { icon: 'pi-bell', text: 'Nhận thông tin đặt hàng từ khách hàng' },
-                             { icon: 'pi-send', text: 'Lên đơn hàng khi Admin 1 duyệt' },
-                             { icon: 'pi-user', text: 'Xem thông tin khách hàng của đơn hàng' },
-                             { icon: 'pi-map-marker', text: 'Cập nhật trạng thái vận chuyển' },
-                             { icon: 'pi-list', text: 'Xem lịch sử & danh sách đơn hàng' }
+                             { icon: 'pi-bell', text: t("role_admin3_p1", "Nhận thông tin đặt hàng từ khách hàng") },
+                             { icon: 'pi-send', text: t("role_admin3_p2", "Lên đơn hàng khi Admin 1 duyệt") },
+                             { icon: 'pi-user', text: t("role_admin3_p3", "Xem thông tin khách hàng của đơn hàng") },
+                             { icon: 'pi-map-marker', text: t("role_admin3_p4", "Cập nhật trạng thái vận chuyển") },
+                             { icon: 'pi-list', text: t("role_admin3_p5", "Xem lịch sử & danh sách đơn hàng") }
                           ].map((item, idx) => (
                              <li key={idx} className="flex items-center gap-3 text-sm font-bold text-gray-700">
                                 <i className={`pi ${item.icon} text-emerald-500`}></i>
@@ -295,10 +332,10 @@ export default function Dashboard() {
                     </div>
                     <div className="pt-6 border-t border-gray-100">
                        <h3 className="text-xs font-black text-red-500 uppercase tracking-[2px] mb-4 flex items-center gap-2">
-                          <i className="pi pi-times-circle"></i> KHÔNG CÓ QUYỀN
+                          <i className="pi pi-times-circle"></i> {t("no_permissions_label", "KHÔNG CÓ QUYỀN")}
                        </h3>
                        <ul className="space-y-4 opacity-40 grayscale">
-                          {['Quản lý sản phẩm', 'Quản lý khuyến mãi', 'Phân quyền Admin'].map((text, idx) => (
+                          {[t("role_admin3_b1", "Quản lý sản phẩm"), t("role_admin3_b2", "Quản lý Khuyến mãi"), t("role_admin3_b3", "Phân quyền Admin")].map((text, idx) => (
                              <li key={idx} className="flex items-center gap-3 text-sm font-bold text-gray-500 line-through">
                                 <i className="pi pi-times-circle text-red-400"></i>
                                 {text}
@@ -336,7 +373,7 @@ export default function Dashboard() {
                        <span className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center shadow-inner pt-1">
                           <i className="pi pi-history text-2xl" />
                        </span>
-                       Nhật ký Vận hành
+                       {t("ops_activity_log", "Nhật ký Vận hành")}
                     </h2>
                  </div>
                   {adminLogs.length > 0 ? (
@@ -357,7 +394,7 @@ export default function Dashboard() {
                                          {new Date(log.time).toLocaleString("vi-VN")}
                                       </span>
                                       <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg">
-                                         Admin: {log.name}
+                                         {t("admin_prefix", "Admin: ")}{log.name}
                                       </span>
                                    </div>
                                    <p className="text-sm font-bold text-slate-700 leading-tight group-hover:text-cyan-600 transition-colors">
@@ -373,7 +410,7 @@ export default function Dashboard() {
                         <div className="w-20 h-20 mb-4 bg-gray-50 rounded-full flex items-center justify-center border-4 border-dashed border-gray-200">
                            <i className="pi pi-clock text-3xl"></i>
                         </div>
-                        <p className="text-sm font-bold">Chưa có hoạt động nào trong hôm nay</p>
+                        <p className="text-sm font-bold">{t("no_activity_today", "Chưa có hoạt động nào trong hôm nay")}</p>
                     </div>
                   )}
               </div>
@@ -460,6 +497,8 @@ export default function Dashboard() {
           </div>
         </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

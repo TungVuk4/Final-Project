@@ -88,7 +88,7 @@ export default function Promotions() {
 
   const header = (
     <div className="flex flex-col md:flex-row justify-between items-center bg-transparent pb-6 pt-2">
-      <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-800 to-gray-500 m-0 drop-shadow-sm tracking-tight mb-4 md:mb-0">Danh Sách Mã Chạy</h2>
+      <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-800 to-gray-500 m-0 drop-shadow-sm tracking-tight mb-4 md:mb-0">{t("running_codes_list", "Danh Sách Mã Chạy")}</h2>
       <span className="p-input-icon-left w-full md:w-auto relative group">
         <i className="pi pi-search text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-blue-500 transition-colors" />
         <InputText

@@ -4,67 +4,98 @@ import { useAppDispatch, useAppSelector } from "../hooks";
 import {
   removeProductFromTheCart,
   updateProductQuantity,
-  addProductToTheCart,
+  setCartItems,
 } from "../features/cart/cartSlice";
 import { getAuthToken } from "../features/auth/authSlice";
 import customFetch from "../axios/custom";
 import toast from "react-hot-toast";
 import { getImageUrl } from "../utils/formatImageUrl";
+import { formatCurrency } from "../utils/formatCurrency";
 
 const Cart = () => {
   const { productsInCart, subtotal } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
   const token = getAuthToken();
 
-  // Load cart từ Backend khi đã đăng nhập
+  // Load cart từ Backend khi đã đăng nhập hoặc có guestToken
   useEffect(() => {
     const loadCartFromServer = async () => {
-      if (!token) return;
       try {
-        const res = await customFetch.get("/cart", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const items = res.data?.items || res.data || [];
-        items.forEach((item: any) => {
-          dispatch(addProductToTheCart({
-            id: String(item.ProductID),
+        let items: any[] = [];
+
+        if (token) {
+          // User đã đăng nhập
+          const res = await customFetch.get("/cart", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          items = res.data?.items || [];
+        } else {
+          // Khách vãng lai — dùng guestToken
+          const guestToken = localStorage.getItem("fashionGuestToken");
+          if (!guestToken) return; // Chưa có guestToken = chưa từng thêm sản phẩm
+          const res = await customFetch.get(`/cart/guest?guestToken=${guestToken}`);
+          items = res.data?.items || [];
+        }
+
+        const formattedItems = items.map((item: any) => {
+          const basePrice = Number(item.Price || item.price || 0);
+          const discountPct = Number(item.DiscountPercent || 0);
+          const discountedPrice = discountPct > 0
+            ? Math.round(basePrice * (1 - discountPct / 100))
+            : basePrice;
+          return {
+            id: String(item.ProductID) + (item.NameSize || item.size || ""),
+            productId: String(item.ProductID),
             title: item.ProductName || item.name,
-            price: Number(item.Price || item.price),
-            image: item.FileName || item.image || "default.jpg",
+            price: discountedPrice,
+            originalPrice: basePrice,
+            discountPercent: discountPct,
+            image: item.image || item.FileName || "default.jpg",
             quantity: item.Quantity || 1,
             stock: item.StockQuantity || 1,
             size: item.NameSize || item.size || "",
             color: item.ColorName || item.color || "",
             popularity: 0,
             category: "",
-          }));
+          };
         });
+        dispatch(setCartItems(formattedItems));
       } catch {
-        // Không cần toast, fallback về Redux local
+        // Fallback về Redux local
       }
     };
     loadCartFromServer();
   }, []);
 
-  const handleRemove = async (id: string) => {
-    dispatch(removeProductFromTheCart({ id }));
+
+
+  const handleRemove = async (product: any) => {
+    dispatch(removeProductFromTheCart({ id: product.id }));
     toast.error("Đã xóa khỏi giỏ hàng");
-    if (token) {
+    if (token && product.productId) {
       try {
-        await customFetch.delete(`/cart/item/${id}`, {
+        await customFetch.delete(`/cart/remove/${product.productId}?size=${product.size || ""}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } catch { /* silent */ }
+    } else if (!token && product.productId) {
+      const guestToken = localStorage.getItem("fashionGuestToken");
+      if (guestToken) {
+        try {
+          await customFetch.delete(`/cart/guest/remove/${product.productId}?guestToken=${guestToken}&size=${product.size || ""}`);
+        } catch { /* silent */ }
+      }
     }
   };
 
 
-  const handleUpdateQuantity = async (id: string, quantity: number) => {
+
+  const handleUpdateQuantity = async (product: any, quantity: number) => {
     if (quantity < 1) return;
-    dispatch(updateProductQuantity({ id, quantity }));
-    if (token) {
+    dispatch(updateProductQuantity({ id: product.id, quantity }));
+    if (token && product.productId) {
       try {
-        await customFetch.put(`/cart/item/${id}`, { Quantity: quantity }, {
+        await customFetch.put(`/cart/update`, { productId: product.productId, quantity, size: product.size || "" }, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } catch { /* silent */ }
@@ -114,7 +145,7 @@ const Cart = () => {
                     <div className="flex justify-between items-start gap-2">
                       <div className="min-w-0">
                         <Link
-                          to={`/product/${product.id}`}
+                          to={`/product/${product.productId || product.id}`}
                           className="font-medium text-stone-800 hover:text-stone-600 transition-colors truncate block"
                         >
                           {product.title}
@@ -136,7 +167,7 @@ const Cart = () => {
                       </div>
                       {/* Remove button */}
                       <button
-                        onClick={() => handleRemove(product.id)}
+                        onClick={() => handleRemove(product)}
                         className="text-stone-400 hover:text-red-500 transition-colors flex-shrink-0 p-1"
                         title="Xóa"
                       >
@@ -147,26 +178,38 @@ const Cart = () => {
                     <div className="flex items-center justify-between mt-2">
                       {/* Quantity control */}
                       <div className="flex items-center border border-stone-300 rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => handleUpdateQuantity(product.id, product.quantity - 1)}
-                          className="px-3 py-1.5 text-stone-600 hover:bg-stone-100 transition-colors text-lg leading-none"
-                        >
-                          −
-                        </button>
-                        <span className="px-3 py-1.5 text-sm font-medium text-stone-800 min-w-[2rem] text-center">
-                          {product.quantity}
-                        </span>
-                        <button
-                          onClick={() => handleUpdateQuantity(product.id, product.quantity + 1)}
-                          className="px-3 py-1.5 text-stone-600 hover:bg-stone-100 transition-colors text-lg leading-none"
-                        >
+                          <button
+                            onClick={() => handleUpdateQuantity(product, product.quantity - 1)}
+                            className="w-8 h-8 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition-colors"
+                          >
+                            −
+                          </button>
+                          <span className="w-8 text-center text-sm font-medium text-stone-800">
+                            {product.quantity}
+                          </span>
+                          <button
+                            onClick={() => handleUpdateQuantity(product, product.quantity + 1)}
+                            className="w-8 h-8 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition-colors"
+                          >
                           +
                         </button>
                       </div>
                       {/* Price */}
-                      <span className="font-semibold text-stone-800">
-                        ${(product.price * product.quantity).toFixed(2)}
-                      </span>
+                      <div className="text-right">
+                        {(product as any).discountPercent > 0 && (
+                          <div className="flex items-center gap-2 justify-end">
+                            <span className="text-[11px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                              -{(product as any).discountPercent}%
+                            </span>
+                            <span className="text-stone-300 line-through text-xs">
+                              {formatCurrency((product as any).originalPrice * product.quantity)}
+                            </span>
+                          </div>
+                        )}
+                        <span className="font-semibold text-stone-800">
+                          {formatCurrency(product.price * product.quantity)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -181,15 +224,15 @@ const Cart = () => {
                 <div className="flex flex-col gap-3 text-sm">
                   <div className="flex justify-between text-stone-600">
                     <span>Tạm tính</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-stone-600">
                     <span>Phí vận chuyển</span>
-                    <span className="text-green-600">{subtotal === 0 ? "$0" : "Miễn phí"}</span>
+                    <span className="text-green-600">{subtotal === 0 ? formatCurrency(0) : "Miễn phí"}</span>
                   </div>
                   <div className="border-t border-stone-200 pt-3 flex justify-between font-semibold text-stone-800 text-base">
                     <span>Tổng cộng</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                 </div>
 

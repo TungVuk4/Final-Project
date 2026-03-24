@@ -75,6 +75,7 @@ router.get("/", async (req, res) => {
               p.Price as price, 
               p.StockQuantity as stock, 
               c.CategoryName as category,
+              p.DiscountPercent as discountPercent,
               0 as popularity,
               IFNULL((SELECT FileName FROM Image WHERE ProductID = p.ProductID LIMIT 1), 'default.jpg') as image
             FROM Products p
@@ -194,6 +195,7 @@ router.get("/:id", async (req, res) => {
               p.Price as price, 
               p.StockQuantity as stock, 
               c.CategoryName as category,
+              p.DiscountPercent as discountPercent,
               p.Description as description,
               0 as popularity,
               IFNULL((SELECT FileName FROM Image WHERE ProductID = p.ProductID LIMIT 1), 'default.jpg') as image

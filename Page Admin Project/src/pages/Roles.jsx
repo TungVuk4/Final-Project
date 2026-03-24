@@ -39,7 +39,7 @@ const getAdminRoles = (t) => [
   {
     id: 1,
     title: t("role_admin1_title", "Admin Chính"),
-    subtitle: t("role_admin1_sub", "Quản trị viên hệ thống"),
+    subtitle: t("role_admin1_sub", "Toàn quyền kiểm soát hệ thống"),
     email: "admin1@fashionstyle.com",
     color: "from-violet-600 to-purple-700",
     lightColor: "bg-violet-50",
@@ -50,6 +50,9 @@ const getAdminRoles = (t) => [
     permissions: [
       { icon: <RiCheckboxCircleFill />, label: t("role_admin1_p1", "Xem & quản lý toàn bộ Dashboard") },
       { icon: <RiUser3Fill />, label: t("role_admin1_p2", "Quản lý tất cả người dùng (CRUD)") },
+      { icon: <RiStore2Fill />, label: t("role_admin1_p3", "Quản lý & duyệt sản phẩm") },
+      { icon: <RiPriceTag3Fill />, label: t("role_admin1_p4", "Toàn quyền quản lý chiến dịch Khuyến Mãi") },
+      { icon: <RiTruckFill />, label: t("role_admin1_p5", "Duyệt đơn hàng do Admin 3 lên") },
       { icon: <RiShieldUserFill />, label: t("role_admin1_p6", "Phân quyền & quản lý Admin 2, Admin 3") },
       { icon: <RiBarChartBoxFill />, label: t("role_admin1_p7", "Xem báo cáo thống kê doanh thu") },
       { icon: <RiSettings4Fill />, label: t("role_admin1_p8", "Cấu hình hệ thống") },
@@ -203,7 +206,7 @@ function RoleCard({ role, isActive = true, onLock, onReset, t }) {
         )}
 
               <RiShieldStarFill size={20} />
-              Admin 1 có quyền khởi tạo và giám sát hoạt động của các cấp Admin khác
+              {t("role_admin1_exclusive", "Admin 1 có quyền khởi tạo và giám sát hoạt động của các cấp Admin khác")}
 
         {/* Chức năng biểu diễn dành riêng cho Admin 1 thao tác với Admin 2 & 3 */}
         {currentEmail === "admin1@fashionstyle.com" && role.id !== 1 && (
@@ -248,7 +251,22 @@ export default function Roles() {
   const [dbLogs, setDbLogs] = useState([]);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [admin2CanDelete, setAdmin2CanDelete] = useState(false);
+  const [admin3CanAccessInfo, setAdmin3CanAccessInfo] = useState(true);
   const [adminIsActive, setAdminIsActive] = useState({ 2: true, 3: true });
+
+  // Cấu hình hệ thống
+  const [sysConfig, setSysConfig] = useState({ maintenance_mode: false, telegram_alerts: true, close_registration: false });
+  const [sysConfigLoading, setSysConfigLoading] = useState({});
+
+  const handleSysConfigToggle = async (key) => {
+    const newValue = !sysConfig[key];
+    setSysConfigLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      await axios.put(`${API_URL}/system-config`, { key, value: newValue }, { headers: { Authorization: `Bearer ${token}` } });
+      setSysConfig(prev => ({ ...prev, [key]: newValue }));
+    } catch { /* silent */ }
+    finally { setSysConfigLoading(prev => ({ ...prev, [key]: false })); }
+  };
 
   // 0. Xử lý thông báo chuyển tài khoản
   useEffect(() => {
@@ -268,6 +286,12 @@ export default function Roles() {
   useEffect(() => {
     fetchAdmin1Data();
     fetchLogs();
+    // Fetch system config nếu là Admin 1
+    if (token) {
+      axios.get(`${API_URL}/system-config`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => { if (res.data?.success) setSysConfig(res.data.data); })
+        .catch(() => {});
+    }
   }, [currentEmail]);
 
   const fetchLogs = async () => {
@@ -304,6 +328,7 @@ export default function Roles() {
       const resPerms = await axios.get(`${API_URL}/user/admin/permissions`, config);
       if (resPerms.data?.success) {
         setAdmin2CanDelete(resPerms.data.admin2CanDelete);
+        setAdmin3CanAccessInfo(resPerms.data.admin3CanAccessInfo);
         setAdminIsActive({
           2: resPerms.data.admin2IsActive,
           3: resPerms.data.admin3IsActive
@@ -364,6 +389,18 @@ export default function Roles() {
     }
   };
 
+  const handleToggleAdmin3Permission = async (val) => {
+    try {
+      await axios.put(`${API_URL}/user/admin/permissions`, 
+        { admin3CanAccessInfo: val },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAdmin3CanAccessInfo(val);
+    } catch (err) {
+      alert("Lỗi khi cập nhật quyền!");
+    }
+  };
+
   const handleDeleteLog = async (logId) => {
     if (currentEmail !== "admin1@fashionstyle.com") {
       alert("Chỉ Admin Chính mới có quyền xóa nhật ký!");
@@ -410,16 +447,16 @@ export default function Roles() {
         <div>
           <h1 className="text-3xl font-extrabold text-slate-800 flex items-center gap-3">
             <RiShieldUserFill className="text-violet-600" size={36} />
-            Phân Quyền Quản Trị
+            {t("roles_title", "Phân Quyền Quản Trị")}
           </h1>
           <p className="text-gray-500 mt-2 font-medium">
-            Quản lý 3 cấp độ Admin, theo dõi trạng thái online và lịch sử hoạt động.
+            {t("roles_sub", "Quản lý 3 cấp độ Admin, theo dõi trạng thái online và lịch sử hoạt động.")}
           </p>
         </div>
         <div className="hidden md:flex flex-col items-end gap-1">
            <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200 font-bold text-sm">
              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-             Hệ thống đang hoạt động
+             {t("system_active_status", "Hệ thống đang hoạt động")}
            </div>
         </div>
       </div>
@@ -445,9 +482,9 @@ export default function Roles() {
             <div>
               <h2 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
                 <RiHistoryFill className="text-blue-500" size={24} />
-                Lịch Sử Hoạt Động
+                {t("activity_log", "Lịch Sử Hoạt Động")}
               </h2>
-              <p className="text-xs font-medium text-gray-400 mt-1">Lưu trữ tối đa 100 hành động gần nhất của các Admin</p>
+              <p className="text-xs font-medium text-gray-400 mt-1">{t("log_storage_limit_desc", "Lưu trữ tối đa 100 hành động gần nhất của các Admin")}</p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -456,7 +493,7 @@ export default function Roles() {
                 <InputText
                   value={searchLog}
                   onChange={(e) => setSearchLog(e.target.value)}
-                  placeholder="Tìm user, email, hành động..."
+                  placeholder={t("search_log_placeholder", "Tìm user, email, hành động...")}
                   className="pl-11 pr-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-medium w-full sm:w-[280px] focus:ring-2 focus:ring-blue-500/50 transition-all font-inter"
                 />
               </div>
@@ -464,7 +501,7 @@ export default function Roles() {
                 <button 
                   onClick={handleClearAllLogs}
                   className="bg-red-50 hover:bg-red-500 text-red-600 hover:text-white p-3 rounded-xl transition-all duration-300 border border-red-100"
-                  title="Xóa tất cả nhật ký"
+                  title={t("clear_all_logs", "Xóa tất cả nhật ký")}
                 >
                   <RiDeleteBinFill size={18} />
                 </button>
@@ -517,7 +554,7 @@ export default function Roles() {
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3">
                 <RiSearchLine size={48} className="text-gray-200" />
-                <p className="font-medium text-sm">Không tìm thấy lịch sử phù hợp.</p>
+                <p className="font-medium text-sm">{t("no_log_found", "Không tìm thấy lịch sử phù hợp.")}</p>
               </div>
             )}
           </div>
@@ -528,9 +565,9 @@ export default function Roles() {
           <div>
             <h2 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
               <RiTruckFill className="text-emerald-500" size={24} />
-              Luồng Đơn Hàng
+              {t("order_flow", "Luồng Đơn Hàng")}
             </h2>
-            <p className="text-xs font-medium text-gray-400 mt-1">Sự phối hợp giữa các tài khoản</p>
+            <p className="text-xs font-medium text-gray-400 mt-1">{t("flow_desc", "Sự phối hợp giữa các tài khoản")}</p>
           </div>
           
           <div className="mt-8 flex flex-col gap-4 flex-1">
@@ -561,20 +598,20 @@ export default function Roles() {
           <div className="mb-6">
             <h2 className="text-2xl font-black text-violet-800 flex items-center gap-3 drop-shadow-sm">
               <RiShieldStarFill className="text-violet-600" size={32} />
-              Bảng Điều Khiển Độc Quyền (Admin Chính)
+              {t("super_admin_panel_title", "Bảng Điều Khiển Độc Quyền (Admin Chính)")}
             </h2>
             <p className="text-sm font-semibold text-violet-600/70 mt-1 pl-11">
-              Trung tâm thao tác các quyền hạn cao cấp nhất của hệ thống
+              {t("super_admin_panel_sub", "Trung tâm thao tác các quyền hạn cao cấp nhất của hệ thống")}
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* 1. Duyệt đơn hàng */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800"><RiCheckDoubleFill className="text-emerald-500" size={24}/> Duyệt Đơn Hàng (Chờ xử lý)</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800"><RiCheckDoubleFill className="text-emerald-500" size={24}/> {t("approve_pending_orders", "Duyệt Đơn Hàng (Chờ xử lý)")}</h3>
               <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-2">
                 {pendingOrders.length === 0 ? (
-                  <p className="text-gray-500 text-sm italic">Không có đơn hàng chờ duyệt.</p>
+                  <p className="text-gray-500 text-sm italic">{t("no_pending_orders", "Không có đơn hàng chờ duyệt.")}</p>
                 ) : (
                   pendingOrders.map(order => (
                     <div key={order.OrderID} className="p-4 bg-gray-50 rounded-xl flex flex-col gap-3 border border-gray-100">
@@ -582,10 +619,10 @@ export default function Roles() {
                         <span className="font-black text-blue-600 font-mono">#ORD-{order.OrderID}</span>
                         <span className="text-[10px] font-bold text-gray-400">{new Date(order.OrderDate).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-sm font-bold text-slate-700">Tổng: <span className="text-red-500">${order.TotalAmount}</span> - {order.FullName}</p>
+                      <p className="text-sm font-bold text-slate-700">{t("total_label", "Tổng:")} <span className="text-red-500">${order.TotalAmount}</span> - {order.FullName}</p>
                       <div className="flex gap-2">
-                        <button onClick={() => handleApproveOrder(order.OrderID, true)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-lg transition-colors flex justify-center items-center gap-1 shadow-sm"><RiCheckLine/> Duyệt</button>
-                        <button onClick={() => handleApproveOrder(order.OrderID, false)} className="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 rounded-lg transition-colors flex justify-center items-center gap-1"><RiCloseLine/> Hủy</button>
+                        <button onClick={() => handleApproveOrder(order.OrderID, true)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-lg transition-colors flex justify-center items-center gap-1 shadow-sm"><RiCheckLine/> {t("approve_btn", "Duyệt")}</button>
+                        <button onClick={() => handleApproveOrder(order.OrderID, false)} className="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 rounded-lg transition-colors flex justify-center items-center gap-1"><RiCloseLine/> {t("reject_btn", "Hủy")}</button>
                       </div>
                     </div>
                   ))
@@ -595,42 +632,48 @@ export default function Roles() {
 
             {/* 2. Quản lý Admin */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800"><RiShieldUserFill className="text-blue-500" size={24}/> Quản Lý Admin 2 & 3</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800"><RiShieldUserFill className="text-blue-500" size={24}/> {t("manage_admin_2_3", "Quản Lý Admin 2 & 3")}</h3>
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100">
                   <div>
-                    <p className="font-extrabold text-sm text-slate-700">Admin Kho (A2)</p>
-                    <p className="text-xs text-gray-500">Quyền Xóa Sản Phẩm Kho</p>
+                    <p className="font-extrabold text-sm text-slate-700">{t("admin2_short_name", "Admin Kho (A2)")}</p>
+                    <p className="text-xs text-gray-500">{t("admin2_delete_perm", "Quyền Xóa Sản Phẩm Kho")}</p>
                   </div>
                   <InputSwitch checked={admin2CanDelete} onChange={(e) => handleToggleAdmin2Permission(e.value)} className="scale-75" />
                 </div>
                 <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
                   <div>
-                    <p className="font-extrabold text-sm text-slate-700">Admin Vận Hành (A3)</p>
-                    <p className="text-xs text-gray-500">Quyền truy cập thông tin khách</p>
+                    <p className="font-extrabold text-sm text-slate-700">{t("admin3_short_name", "Admin Vận Hành (A3)")}</p>
+                    <p className="text-xs text-gray-500">{t("admin3_access_perm", "Quyền truy cập thông tin khách")}</p>
                   </div>
-                  <InputSwitch checked={true} className="scale-75" />
+                  <InputSwitch checked={admin3CanAccessInfo} onChange={(e) => handleToggleAdmin3Permission(e.value)} className="scale-75" />
                 </div>
               </div>
             </div>
 
             {/* 3. Cấu hình hệ thống */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800"><RiSettings4Fill className="text-amber-500" size={24}/> Cấu Hình Hệ Thống</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-800"><RiSettings4Fill className="text-amber-500" size={24}/> {t("system_config", "Cấu Hình Hệ Thống")}</h3>
               <div className="flex flex-col gap-4">
                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-700">Chế độ Bảo Trì Web</span>
-                    <InputSwitch checked={false} className="scale-75" />
+                    <div>
+                      <span className="text-sm font-bold text-slate-700">{t("maintenance_mode", "Chế độ Bảo Trì Web")}</span>
+                      {sysConfig.maintenance_mode && <span className="ml-2 text-[10px] font-black px-2 py-0.5 bg-red-100 text-red-600 rounded-full">ĐANG BẬT</span>}
+                    </div>
+                    <InputSwitch checked={!!sysConfig.maintenance_mode} disabled={!!sysConfigLoading.maintenance_mode} onChange={() => handleSysConfigToggle('maintenance_mode')} className="scale-75" />
                  </div>
-                 <div className="h-px w-full bg-gray-100 dark:bg-gray-800"></div>
+                 <div className="h-px w-full bg-gray-100"></div>
                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-700">Nhận cảnh báo qua TGM</span>
-                    <InputSwitch checked={true} className="scale-75" />
+                    <span className="text-sm font-bold text-slate-700">{t("tgm_alerts", "Nhận cảnh báo qua TGM")}</span>
+                    <InputSwitch checked={!!sysConfig.telegram_alerts} disabled={!!sysConfigLoading.telegram_alerts} onChange={() => handleSysConfigToggle('telegram_alerts')} className="scale-75" />
                  </div>
-                 <div className="h-px w-full bg-gray-100 dark:bg-gray-800"></div>
+                 <div className="h-px w-full bg-gray-100"></div>
                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-700">Đóng đăng ký Customer mới</span>
-                    <InputSwitch checked={false} className="scale-75" />
+                    <div>
+                      <span className="text-sm font-bold text-slate-700">{t("close_registration", "Đóng đăng ký Customer mới")}</span>
+                      {sysConfig.close_registration && <span className="ml-2 text-[10px] font-black px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full">ĐANG TẮT</span>}
+                    </div>
+                    <InputSwitch checked={!!sysConfig.close_registration} disabled={!!sysConfigLoading.close_registration} onChange={() => handleSysConfigToggle('close_registration')} className="scale-75" />
                  </div>
               </div>
             </div>

@@ -97,7 +97,7 @@ export default function UserPopover() {
                 <div className="text-white/70 text-xs truncate">{user?.email || ""}</div>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
-                  <span className="text-white/60 text-[11px]">Đang hoạt động</span>
+                  <span className="text-white/60 text-[11px]">{t("status_active", "Đang hoạt động")}</span>
                 </div>
               </div>
             </div>
@@ -107,7 +107,7 @@ export default function UserPopover() {
           {otherAdmins.length > 0 && (
             <>
               <div className="px-4 pt-3 pb-1">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chuyển sang tài khoản</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t("switch_account", "Chuyển sang tài khoản")}</p>
               </div>
               <div className="px-3 pb-2 flex flex-col gap-1">
                 {otherAdmins.map((admin) => {
@@ -152,21 +152,21 @@ export default function UserPopover() {
               className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-all font-medium"
             >
               <i className="pi pi-home text-gray-400 group-hover:text-blue-500 transition-colors" />
-              <span>Trang chủ</span>
+              <span>{t("home", "Trang chủ")}</span>
             </button>
             <button
               onClick={() => { setVisibleProfile(true); op.current?.hide(); }}
               className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-all font-medium"
             >
               <i className="pi pi-user text-gray-400 group-hover:text-violet-500 transition-colors" />
-              <span>Hồ sơ</span>
+              <span>{t("profile", "Hồ sơ")}</span>
             </button>
             <button
               onClick={() => { setVisibleSettings(true); op.current?.hide(); }}
               className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-100 transition-all font-medium"
             >
               <i className="pi pi-cog text-gray-400 group-hover:text-amber-500 transition-colors" />
-              <span>Cài đặt</span>
+              <span>{t("settings", "Cài đặt")}</span>
             </button>
           </div>
 
@@ -178,7 +178,7 @@ export default function UserPopover() {
               className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-red-500 font-bold hover:bg-red-50 transition-all"
             >
               <i className="pi pi-sign-out" />
-              Đăng xuất
+              {t("logout", "Đăng xuất")}
             </button>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function UserPopover() {
       <Dialog
         visible={visibleProfile}
         onHide={() => setVisibleProfile(false)}
-        header="Hồ sơ nhân sự"
+        header={t("staff_profile", "Hồ sơ nhân sự")}
         style={{ width: "480px" }}
         modal draggable={false} resizable={false}
         className="custom-profile-dialog"
@@ -198,7 +198,7 @@ export default function UserPopover() {
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-2 rounded-xl transition-all" 
               onClick={() => setVisibleProfile(false)}
             >
-              Đóng
+              {t("close", "Đóng")}
             </button>
           </div>
         }
@@ -209,15 +209,15 @@ export default function UserPopover() {
           </div>
           <div className="w-full flex flex-col gap-4 px-4">
             <div className="flex flex-col gap-2">
-              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">HỌ TÊN</label>
+              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">{t("full_name_upper", "HỌ TÊN")}</label>
               <InputText value={user?.name || ""} disabled className="p-3.5 border-none bg-gray-50 text-gray-800 font-bold rounded-2xl w-full" />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">EMAIL HỆ THỐNG</label>
+              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">{t("system_email_upper", "EMAIL HỆ THỐNG")}</label>
               <InputText value={user?.email || ""} disabled className="p-3.5 border-none bg-gray-50 rounded-2xl w-full text-gray-500 font-bold" />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">VAI TRÒ QUẢN TRỊ</label>
+              <label className="font-extrabold text-[11px] text-gray-400 uppercase tracking-widest ml-1">{t("admin_role_upper", "VAI TRÒ QUẢN TRỊ")}</label>
               <div className="p-3.5 bg-blue-50 text-blue-700 font-extrabold rounded-2xl text-center text-sm uppercase border border-blue-100 tracking-widest">
                 {user?.role || "ADMIN"}
               </div>
@@ -230,7 +230,7 @@ export default function UserPopover() {
       <Dialog
         visible={visibleSettings}
         onHide={() => setVisibleSettings(false)}
-        header="Cài đặt hệ thống"
+        header={t("system_settings", "Cài đặt hệ thống")}
         style={{ width: "400px" }}
         modal className="rounded-[32px] overflow-hidden"
       >
@@ -238,12 +238,12 @@ export default function UserPopover() {
           <div className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-gray-100">
             <div className="flex items-center gap-3">
               <i className="pi pi-desktop text-blue-500 text-xl"></i>
-              <span className="font-bold text-slate-700">Giao diện mặc định</span>
+              <span className="font-bold text-slate-700">{t("default_theme", "Giao diện mặc định")}</span>
             </div>
             <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">Premium Light</span>
           </div>
           <p className="text-center text-xs text-gray-400 font-medium px-4 leading-relaxed">
-            Hệ thống đã được tối ưu hóa cho phong cách trắng sáng. Chế độ tối hiện không khả dụng để đảm bảo trải nghiệm thương hiệu tốt nhất.
+            {t("theme_notice", "Hệ thống đã được tối ưu hóa cho phong cách trắng sáng. Chế độ tối hiện không khả dụng để đảm bảo trải nghiệm thương hiệu tốt nhất.")}
           </p>
         </div>
       </Dialog>
