@@ -18,6 +18,7 @@
     "concurrently": "^8.2.2",
     "json-server": "^1.0.0-beta.1",
     "nanoid": "^5.0.7",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",

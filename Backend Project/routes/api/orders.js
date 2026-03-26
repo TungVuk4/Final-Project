@@ -89,9 +89,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
   const { ShippingAddress, PromotionCode, PaymentMethod, cartItems } = req.body;
 
   if (!ShippingAddress || !PaymentMethod || !cartItems || cartItems.length === 0) {
-    return res.status(400).json({
-      message: "Vui lòng cung cấp địa chỉ, phương thức thanh toán và sản phẩm.",
-    });
+    return res.status(400).json({ error: "Vui lòng cung cấp đủ thông tin nhận hàng và giỏ hàng." });
   }
 
   // Kiểm tra PaymentMethod hợp lệ
@@ -113,7 +111,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
     );
     const cartId = cartRows[0]?.CartID;
 
-    // 2. Tính toán tổng tiền — áp dụng DiscountPercent nếu có
+    // 2. Tính toán tổng tiền
     let totalAmount = 0;
     for (let i = 0; i < cartItems.length; i++) {
         const [prodRows] = await connection.query(
@@ -123,7 +121,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
         if (prodRows.length === 0) throw new Error(`Sản phẩm ${cartItems[i].ProductID} không tồn tại`);
         const basePrice = prodRows[0].Price;
         const discountPct = prodRows[0].DiscountPercent || 0;
-        // Lưu giá đã giảm vào OrderDetails
+        // Giá sau khi giảm của sản phẩm
         cartItems[i].Price = discountPct > 0
           ? Math.round(basePrice * (1 - discountPct / 100))
           : basePrice;
@@ -133,18 +131,55 @@ router.post("/checkout", requireAuth, async (req, res) => {
     let discount = 0;
     let promotionId = null;
 
-    // 3. Xử lý Khuyến mãi (nếu có mã)
-    // (Logic kiểm tra mã khuyến mãi sẽ được bổ sung sau nếu cần)
+    // 3. Xử lý Khuyến mãi (PromotionCode)
+    if (PromotionCode) {
+        // Ưu tiên check mã dùng 1 lần (promotions_code)
+        const [singleUseRows] = await connection.query(
+          `SELECT pc.CodeID, pc.PromotionID, p.DiscountPercent 
+           FROM promotions_code pc
+           JOIN Promotions p ON pc.PromotionID = p.PromotionID
+           WHERE pc.CodeValue = ? AND pc.IsUsed = 0 
+           AND (pc.AssignedToUserID IS NULL OR pc.AssignedToUserID = ?)
+           AND p.IsActive = 1 AND p.StartDate <= CURDATE() AND p.EndDate >= CURDATE()`,
+          [PromotionCode, req.user.UserID]
+        );
 
-    // 4. Áp dụng khuyến mãi nếu có
-    const finalAmount = Math.round(totalAmount * (1 - discount));
+        if (singleUseRows.length > 0) {
+          discount = singleUseRows[0].DiscountPercent / 100;
+          promotionId = singleUseRows[0].PromotionID;
+          // Đánh dấu mã này đã sử dụng
+          await connection.query("UPDATE promotions_code SET IsUsed = 1 WHERE CodeID = ?", [singleUseRows[0].CodeID]);
+        } else {
+          // Fallback: Check mã chung/VIP (Promotions)
+          const [promoRows] = await connection.query(
+              "SELECT PromotionID, DiscountPercent FROM Promotions WHERE Code = ? AND IsActive = 1 AND StartDate <= CURDATE() AND EndDate >= CURDATE()",
+              [PromotionCode]
+          );
+          if (promoRows.length > 0) {
+              discount = promoRows[0].DiscountPercent / 100;
+              promotionId = promoRows[0].PromotionID;
+              // Mark voucher as used if assigned to user
+              await connection.query(
+                  "UPDATE UserVouchers SET IsUsed = 1 WHERE UserID = ? AND PromotionID = ?",
+                  [userId, promotionId]
+              );
+          }
+        }
+    }
+
+    // 4. Tính TotalWithTax: Subtotal + 10% Tax - PromoDiscount
+    const tax = totalAmount * 0.1;
+    const discountAmount = totalAmount * discount;
+    const finalAmount = Math.max(0, Math.round(totalAmount + tax - discountAmount));
 
     // 5. Thiết lập Trạng thái Đơn hàng ban đầu
     let initialStatus;
     if (PaymentMethod.toUpperCase() === "COD") {
-      initialStatus = "PENDING_COD"; // Chờ giao hàng để thu tiền
+      initialStatus = "PENDING_COD"; 
+    } else if (PaymentMethod.toUpperCase() === "BANK TRANSFER") {
+      initialStatus = "PENDING_BANK"; // Đã thanh toán qua bank, chờ Admin duyệt
     } else {
-      initialStatus = "AWAITING_PAYMENT"; // Chờ thanh toán online
+      initialStatus = "AWAITING_PAYMENT";
     }
 
     // 6. Tạo Đơn hàng mới (Orders)
@@ -190,6 +225,28 @@ router.post("/checkout", requireAuth, async (req, res) => {
       }
     }
 
+    // 10. Ghi nhận giao dịch thanh toán vào payment_transactions (nếu không phải COD)
+    if (PaymentMethod.toUpperCase() !== "COD") {
+      let paymentStatus = "Đang chờ";
+      let displayMethod = PaymentMethod;
+      
+      if (PaymentMethod.toUpperCase() === "BANK TRANSFER") {
+        paymentStatus = "Thành công"; // Form đã giả lập khách xác nhận thanh toán
+        displayMethod = "Chuyển khoản";
+      }
+
+      const txnCode = `TXN${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+      
+      try {
+        await connection.query(
+          "INSERT INTO payment_transactions (OrderID, PaymentMethod, TransactionCode, Amount, Status) VALUES (?, ?, ?, ?, ?)",
+          [orderId, displayMethod, txnCode, finalAmount, paymentStatus]
+        );
+      } catch (err) {
+        console.warn("Lỗi ghi payment_transactions:", err.message);
+      }
+    }
+
     await connection.commit();
 
     // Trả response ngay — email gửi nền (fire-and-forget)
@@ -210,7 +267,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
         return transporter.sendMail({
           from: process.env.EMAIL_USER,
-          to: "admin3@fashionstyle.com",
+          to: process.env.EMAIL_USER, // Thay "admin3@fashionstyle.com" bằng email thật để tránh bị bounce lại
           subject: `[FashionStyle] ⚠️ Đơn hàng mới #${orderId} cần xử lý`,
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;">
@@ -260,7 +317,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
 // ----------------------------------------------------------------
 router.post("/guest-checkout", async (req, res) => {
   let connection;
-  const { ShippingAddress, PaymentMethod, CustomerName, CustomerEmail, CustomerPhone, cartItems } = req.body;
+  const { ShippingAddress, PaymentMethod, PromotionCode, CustomerName, CustomerEmail, CustomerPhone, cartItems } = req.body;
 
   if (!ShippingAddress || !PaymentMethod || !cartItems || cartItems.length === 0 || !CustomerName || !CustomerPhone) {
     return res.status(400).json({ message: "Vui lòng cung cấp đủ thông tin nhận hàng và giỏ hàng." });
@@ -292,14 +349,57 @@ router.post("/guest-checkout", async (req, res) => {
       totalAmount += cartItems[i].Quantity * cartItems[i].Price;
     }
 
-    let initialStatus = PaymentMethod.toUpperCase() === "COD" ? "PENDING_COD" : "AWAITING_PAYMENT";
+    let discount = 0;
+    let promotionId = null;
+
+    if (PromotionCode) {
+        // Ưu tiên check mã dùng 1 lần (promotions_code)
+        const [singleUseRows] = await connection.query(
+          `SELECT pc.CodeID, pc.PromotionID, p.DiscountPercent 
+           FROM promotions_code pc
+           JOIN Promotions p ON pc.PromotionID = p.PromotionID
+           WHERE pc.CodeValue = ? AND pc.IsUsed = 0 
+           AND pc.AssignedToUserID IS NULL
+           AND p.IsActive = 1 AND p.StartDate <= CURDATE() AND p.EndDate >= CURDATE()`,
+          [PromotionCode]
+        );
+
+        if (singleUseRows.length > 0) {
+            discount = singleUseRows[0].DiscountPercent / 100;
+            promotionId = singleUseRows[0].PromotionID;
+            await connection.query("UPDATE promotions_code SET IsUsed = 1 WHERE CodeID = ?", [singleUseRows[0].CodeID]);
+        } else {
+            // Fallback: Check mã chung (Promotions)
+            const [promoRows] = await connection.query(
+                "SELECT PromotionID, DiscountPercent FROM Promotions WHERE Code = ? AND IsActive = 1 AND StartDate <= CURDATE() AND EndDate >= CURDATE()",
+                [PromotionCode]
+            );
+            if (promoRows.length > 0) {
+                discount = promoRows[0].DiscountPercent / 100;
+                promotionId = promoRows[0].PromotionID;
+            }
+        }
+    }
+
+    const tax = totalAmount * 0.1;
+    const discountAmount = totalAmount * discount;
+    const finalAmount = Math.max(0, Math.round(totalAmount + tax - discountAmount));
+
+    let initialStatus;
+    if (PaymentMethod.toUpperCase() === "COD") {
+      initialStatus = "PENDING_COD"; 
+    } else if (PaymentMethod.toUpperCase() === "BANK TRANSFER") {
+      initialStatus = "PENDING_BANK"; // Đã thanh toán qua bank, chờ Admin duyệt
+    } else {
+      initialStatus = "AWAITING_PAYMENT";
+    }
 
     // Format địa chỉ gom chung tên và SĐT
     const finalAddress = `${CustomerName} - ${CustomerPhone} - ${ShippingAddress}`;
 
     const [orderResult] = await connection.query(
-      `INSERT INTO Orders (UserID, TotalAmount, Status, ShippingAddress, PaymentMethod) VALUES (NULL, ?, ?, ?, ?)`,
-      [totalAmount, initialStatus, finalAddress, PaymentMethod]
+      `INSERT INTO Orders (UserID, TotalAmount, Status, ShippingAddress, PaymentMethod, GuestEmail, PromotionID) VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
+      [finalAmount, initialStatus, finalAddress, PaymentMethod, CustomerEmail, promotionId]
     );
     const orderId = orderResult.insertId;
 
@@ -323,15 +423,37 @@ router.post("/guest-checkout", async (req, res) => {
       }
     }
 
+    // Ghi nhận giao dịch thanh toán vào payment_transactions (nếu không phải COD)
+    if (PaymentMethod.toUpperCase() !== "COD") {
+      let paymentStatus = "Đang chờ";
+      let displayMethod = PaymentMethod;
+      
+      if (PaymentMethod.toUpperCase() === "BANK TRANSFER") {
+        paymentStatus = "Thành công"; // Form đã giả lập khách xác nhận thanh toán
+        displayMethod = "Chuyển khoản";
+      }
+
+      const txnCode = `TXN${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
+      
+      try {
+        await connection.query(
+          "INSERT INTO payment_transactions (OrderID, PaymentMethod, TransactionCode, Amount, Status) VALUES (?, ?, ?, ?, ?)",
+          [orderId, displayMethod, txnCode, finalAmount, paymentStatus]
+        );
+      } catch (err) {
+        console.warn("Lỗi ghi payment_transactions guest:", err.message);
+      }
+    }
+
     await connection.commit();
 
     // 📧 Gửi email thông báo đơn mới (Cho Admin)
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: "admin3@fashionstyle.com",
+        to: process.env.EMAIL_USER, // Thay "admin3@fashionstyle.com" bằng email thật để tránh bị bounce lại
         subject: `[FashionStyle] ⚠️ Đơn hàng GUEST mới #${orderId}`,
-        html: `<p>Có đơn hàng mới từ Khách vãng lai: ${CustomerName} - ${CustomerPhone}</p><p>Tổng tiền: <b>${totalAmount.toLocaleString('vi-VN')} VNĐ</b></p><p>Địa chỉ: ${ShippingAddress}</p>`
+        html: `<p>Có đơn hàng mới từ Khách vãng lai: ${CustomerName} - ${CustomerPhone}</p><p>Tổng tiền: <b>${finalAmount.toLocaleString('vi-VN')} VNĐ</b></p><p>Địa chỉ: ${ShippingAddress}</p>`
       });
     } catch (e) { console.warn("Lỗi gửi mail GUEST to Admin", e.message); }
 
@@ -347,7 +469,7 @@ router.post("/guest-checkout", async (req, res) => {
         html: `<div style="font-family:Arial,sans-serif;max-width:600px;">
                 <h2 style="color:#059669;">Cảm ơn bạn đã mua sắm! 🎉</h2>
                 <p>Xin chào ${CustomerName},</p>
-                <p>Đơn hàng <b>#${orderId}</b> trị giá <b>${totalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. Chúng tôi sẽ sớm liên hệ qua số <b>${CustomerPhone}</b> để giao hàng đến <i>${ShippingAddress}</i>.</p>
+                <p>Đơn hàng <b>#${orderId}</b> trị giá <b>${finalAmount.toLocaleString('vi-VN')} VNĐ</b> đã được tiếp nhận. Chúng tôi sẽ sớm liên hệ qua số <b>${CustomerPhone}</b> để giao hàng đến <i>${ShippingAddress}</i>.</p>
                </div>`,
       }).catch(e => console.warn("⚠️ Email guest lỗi:", e.message));
     }
@@ -473,7 +595,7 @@ router.put("/admin/:id/approve", requireAuth, requireAdminLevel1, async (req, re
       }
       promises.push(transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: "admin3@fashionstyle.com",
+        to: process.env.EMAIL_USER, // Thay "admin3@fashionstyle.com" bằng email thật để tránh bị bounce lại
         subject: `[FashionStyle] Đơn #${orderId} → ${isApproved ? "ĐÃ DUYỆT ✅" : "Bị TỪ CHỐI ❌"}`,
         html: `<p>Đơn hàng <b>#${orderId}</b> vừa được Admin Chính <b>${isApproved ? "duyệt" : "từ chối"}</b>.</p>${Reason ? `<p>Lý do: ${Reason}</p>` : ""}<p>Trạng thái mới: <b>${newStatus}</b></p>`,
       }));
@@ -499,10 +621,10 @@ router.put("/admin/:id/approve", requireAuth, requireAdminLevel1, async (req, re
 // PUT /api/orders/admin/:id/status
 router.put("/admin/:id/status", requireAuth, requireAdminLevel3, async (req, res) => {
   const orderId = req.params.id;
-  const { Status } = req.body; // Trạng thái mới: 'Đang giao', 'Đã giao', 'Đã hủy'
+  const { Status, Reason } = req.body; // Trạng thái mới: 'Đang giao', 'Đã giao', 'Đã hủy'. Cho phép truyền thêm Reason nếu 'Đã hủy'
 
   // Đảm bảo trạng thái hợp lệ
-  const validStatuses = ["Chờ xử lý", "Đang giao", "Đã giao", "Đã hủy"];
+  const validStatuses = ["Chờ xử lý", "Đang giao", "Đã giao", "Đã hủy", "Từ chối"];
   if (!validStatuses.includes(Status)) {
     return res.status(400).json({ message: "Trạng thái không hợp lệ." });
   }
@@ -519,24 +641,56 @@ router.put("/admin/:id/status", requireAuth, requireAdminLevel3, async (req, res
         .json({ success: false, message: "Không tìm thấy đơn hàng." });
     }
 
+    // Trả response ngay để không bị block / delay quá trình
+    res.status(200).json({
+      success: true,
+      message: `Cập nhật trạng thái đơn hàng ${orderId} thành ${Status} thành công.`,
+    });
+
+    // 📧 Gửi email thông báo cho Khách hàng về cập nhật trạng thái
+    pool.query(`SELECT o.GuestEmail, u.FullName, u.Email FROM Orders o LEFT JOIN Users u ON o.UserID = u.UserID WHERE o.OrderID = ?`, [orderId])
+      .then(([orderRows]) => {
+        const order = orderRows[0];
+        const targetEmail = order?.Email || order?.GuestEmail;
+        const targetName = order?.FullName || "Khách hàng";
+        
+        if (targetEmail) {
+          let emailHtml = `<h3>Xin chào ${targetName},</h3><p>Đơn hàng <b>#${orderId}</b> của bạn vừa được cập nhật trạng thái thành: <b style="color:blue;">${Status}</b>.</p>`;
+          if (Status === "Đã hủy" && Reason) {
+            emailHtml += `<p>Lý do: <i>${Reason}</i></p>`;
+          }
+          emailHtml += `<p>Cảm ơn bạn đã đồng hành cùng FashionStyle!</p>`;
+
+          return transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: targetEmail,
+            subject: `[FashionStyle] 📦 Cập nhật trạng thái đơn hàng #${orderId}`,
+            html: emailHtml
+          });
+        }
+      })
+      .catch(err => console.warn("⚠️ Không gửi được email cập nhật trạng thái (nền):", err.message));
+
     // 📝 Ghi log hoạt động Admin
     try {
       const adminId = req.user.userId;
+      let logDetails = `Cập nhật trạng thái đơn hàng #${orderId} thành: ${Status}`;
+      if (Status === "Đã hủy" && Reason) {
+        logDetails += ` (Lý do: ${Reason})`;
+      }
       await pool.query(
         "INSERT INTO admin_activity_logs (AdminID, ActionType, TableName, Details) VALUES (?, ?, ?, ?)",
-        [adminId, "UPDATE_STATUS", "Orders", `Cập nhật trạng thái đơn hàng #${orderId} thành: ${Status}`]
+        [adminId, "UPDATE_STATUS", "Orders", logDetails]
       );
     } catch (logErr) {
       console.warn("⚠️ Không ghi được log cập nhật trạng thái:", logErr.message);
     }
 
-    res.status(200).json({
-      success: true,
-      message: `Cập nhật trạng thái đơn hàng ${orderId} thành ${Status} thành công.`,
-    });
   } catch (error) {
     console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
-    res.status(500).json({ error: "Lỗi server" });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Lỗi server" });
+    }
   }
 });
 

@@ -20,6 +20,7 @@ const getStatusCfg = (status, t) => {
   if (!status) return { label: "—", color: "bg-gray-500/15 text-gray-500 border-gray-500/30", icon: "pi-question-circle" };
   const configs = {
     PENDING_COD: { label: t("status_pending_admin", "Chờ xác nhận (COD)"), color: "bg-amber-500/10 text-amber-600 border-amber-200/50", icon: "pi-clock" },
+    PENDING_BANK: { label: "Chờ duyệt (CK)", color: "bg-emerald-500/10 text-emerald-600 border-emerald-200/50", icon: "pi-money-bill" },
     AWAITING_PAYMENT: { label: t("status_awaiting_payment", "Chờ thanh toán"), color: "bg-orange-500/10 text-orange-600 border-orange-200/50", icon: "pi-credit-card" },
     PROCESSING: { label: t("status_processing", "Đang xử lý"), color: "bg-blue-500/10 text-blue-600 border-blue-200/50", icon: "pi-sync" },
     SHIPPING: { label: t("status_shipping", "Đang giao"), color: "bg-indigo-500/10 text-indigo-600 border-indigo-200/50", icon: "pi-truck" },

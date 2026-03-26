@@ -2,24 +2,36 @@ import { Link } from "react-router-dom";
 
 const OrderConfirmation = () => {
   return (
-    <div className="max-w-screen-2xl mx-auto pt-20">
-      <h1 className="text-5xl font-light text-center">Order Confirmation</h1>
-      <p className="text-center mt-5 text-lg">
-        Your order has been confirmed and will be shipped shortly.
+    <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-20">
+      {/* Icon */}
+      <div className="w-28 h-28 rounded-full bg-emerald-50 flex items-center justify-center mb-6">
+        <svg className="w-14 h-14 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+
+      <h1 className="text-3xl font-light text-gray-800 text-center mb-2">Đặt hàng thành công! 🎉</h1>
+      <p className="text-gray-500 text-center max-w-md mb-8">
+        Cảm ơn bạn đã mua sắm tại <span className="font-semibold text-gray-700">FashionStyle</span>.
+        Đơn hàng của bạn đã được tiếp nhận và sẽ được xử lý trong thời gian sớm nhất.
       </p>
-      <Link
-        to="/shop"
-        className="text-white bg-secondaryBrown text-center text-xl font-normal tracking-[0.6px] leading-[72px] w-[400px] mx-auto mt-5 h-12 flex items-center justify-center max-md:text-base"
-      >
-        Continue shopping
-      </Link>
-      <Link
-        to="/order-history"
-        className="text-white bg-secondaryBrown text-center text-xl font-normal tracking-[0.6px] leading-[72px] w-[400px] mx-auto mt-5 h-12 flex items-center justify-center max-md:text-base"
-      >
-        See order history and status
-      </Link>
+
+      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+        <Link
+          to="/order-history"
+          className="flex-1 text-center bg-gray-900 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-xl transition-all"
+        >
+          Xem lịch sử đơn hàng
+        </Link>
+        <Link
+          to="/shop"
+          className="flex-1 text-center border border-gray-300 hover:border-gray-500 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all"
+        >
+          Tiếp tục mua sắm
+        </Link>
+      </div>
     </div>
   );
 };
+
 export default OrderConfirmation;

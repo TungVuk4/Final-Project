@@ -35,6 +35,9 @@ export default function Dashboard() {
   const [pieData, setPieData] = useState([]);
   const [barData, setBarData] = useState([]);
   const [adminLogs, setAdminLogs] = useState([]);
+  
+  // Khách hàng VIP
+  const [topCustomers, setTopCustomers] = useState([]);
 
   // Cấu hình hệ thống (Admin 1)
   const [sysConfig, setSysConfig] = useState({
@@ -62,6 +65,13 @@ export default function Dashboard() {
           setBarData(chRes.data.data.barChart || []);
         }
         if (logRes.data?.success) setAdminLogs(logRes.data.data.slice(0, 10));
+        
+        // Fetch Top 3 customers (If admin 1; or just fetch it and only show it if admin 1)
+        if (useAuthStore.getState().user?.email === "admin1@fashionstyle.com") {
+          axios.get(`${API_URL}/stats/top-customers`, config)
+            .then(res => { if (res.data?.success) setTopCustomers(res.data.data); })
+            .catch(() => {});
+        }
       } catch (error) {
         console.error("Lỗi load dashboard:", error);
       } finally {
@@ -496,6 +506,64 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Khối Khách hàng VIP (Chỉ dành cho Admin 1) */}
+        {isAdmin1 && (
+          <div className="bg-white p-6 rounded-[1.5rem] shadow-sm hover:shadow-md transition-shadow border border-gray-100 mt-6">
+            <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shadow-inner">
+                <i className="pi pi-crown text-xl" />
+              </span>
+              Top 3 Khách Hàng VIP
+            </h2>
+            
+            {loading ? (
+              <Skeleton width="100%" height="8rem" borderRadius="1rem" className="!bg-gray-100" />
+            ) : topCustomers.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {topCustomers.map((user, index) => {
+                  const medals = ["🥇", "🥈", "🥉"];
+                  const isVip = user.orderCount >= 15;
+                  return (
+                    <div key={user.UserID} className="bg-gradient-to-br from-slate-50 to-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-100 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 opacity-50"></div>
+                      
+                      <div className="flex justify-between items-start mb-4 relative z-10">
+                        <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-xl shadow-inner font-black text-slate-500">
+                          {user.FullName?.charAt(0) || "U"}
+                        </div>
+                        <span className="text-4xl drop-shadow-md">{medals[index] || "🎖️"}</span>
+                      </div>
+                      
+                      <div className="relative z-10">
+                        <h3 className="font-black text-gray-800 text-lg flex items-center gap-2">
+                          {user.FullName}
+                          {isVip && <span className="text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">VIP</span>}
+                        </h3>
+                        <p className="text-gray-500 text-xs font-medium truncate mb-4">{user.Email}</p>
+                        
+                        <div className="flex items-end justify-between pt-4 border-t border-slate-100">
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Đơn Hàng</p>
+                            <p className="font-extrabold text-blue-600 text-xl">{user.orderCount}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Chi Tiêu</p>
+                            <p className="font-black text-emerald-600 text-xl">{formatCurrency(user.totalSpent)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-10 text-gray-400">
+                <p className="font-medium">Chưa có đủ dữ liệu khách hàng.</p>
+              </div>
+            )}
+          </div>
+        )}
         </>
       )}
       </>

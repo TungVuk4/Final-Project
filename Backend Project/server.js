@@ -120,6 +120,28 @@ async function initAdminAccounts() {
   }
 }
 
+// Tự động tạo bảng UserVouchers nếu chưa có
+async function initUserVouchersTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS UserVouchers (
+        VoucherID    INT AUTO_INCREMENT PRIMARY KEY,
+        UserID       INT NOT NULL,
+        PromotionID  INT NOT NULL,
+        AssignedAt   DATETIME DEFAULT CURRENT_TIMESTAMP,
+        IsUsed       TINYINT(1) DEFAULT 0,
+        FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE,
+        FOREIGN KEY (PromotionID) REFERENCES Promotions(PromotionID) ON DELETE CASCADE,
+        UNIQUE KEY uq_user_promo (UserID, PromotionID)
+      )
+    `);
+    console.log("✅ UserVouchers table ready.");
+  } catch (err) {
+    console.error("⚠️  Could not init UserVouchers table:", err.message);
+  }
+}
+
+
 // --- KHỞI CHẠY SERVER ---
 const httpServer = http.createServer(app);
 httpServer.listen(httpPort, hostname, async () => {
@@ -128,5 +150,6 @@ httpServer.listen(httpPort, hostname, async () => {
   console.log(`📡 URL: http://${hostname}:${httpPort}`);
   console.log(`-------------------------------------------`);
   await initAdminAccounts(); // Tự động tạo admin khi server start
+  await initUserVouchersTable(); // Tự động tạo bảng UserVouchers nếu chưa có
 });
 

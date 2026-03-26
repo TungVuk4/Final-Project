@@ -73,8 +73,8 @@ Backend Project/
 │       ├── colors.js       # 🆕 Quản lý bảng màu (BLACK, RED, BLUE, WHITE, ROSE, GREEN)
 │       ├── admin_logs.js   # 🆕 Nhật ký hoạt động của 3 Admin (CRUD Logs)
 │       ├── cart.js         # Giỏ hàng User đã đăng nhập + 🆕 Guest cart (GuestToken)
-│       ├── orders.js       # Đặt hàng, lịch sử, trạng thái — 🆕 Email gửi nền (fire-and-forget)
-│       ├── promotions.js   # Quản lý mã giảm giá (Admin Level 2)
+│       ├── orders.js       # Đặt hàng, lịch sử, trạng thái — 🆕 Checkout & áp dụng mã Random VIP
+│       ├── promotions.js   # Quản lý mã giảm (Admin 2) + 🆕 Sinh mã Random 1 lần & gán VIP
 │       ├── stats.js        # Thống kê Dashboard — 🆕 đếm đúng PROCESSING trong pendingOrders
 │       ├── reviews.js      # 🆕 Quản lý đánh giá (Hỗ trợ Guest & User)
 │       ├── notifications.js# 🆕 API thông báo hệ thống (chuông báo Topbar)
@@ -137,7 +137,7 @@ Backend Project/
 | Quản lý người dùng | ✅ (Reset MK/Khóa TK) | ❌ | ❌ |
 | Thêm / Sửa sản phẩm | ✅ | ✅ | ❌ |
 | **Duyệt xóa sản phẩm** | ✅ | ❌ (Chỉ gửi yc) | ❌ |
-| Quản lý Khuyến Mãi | ✅ (Đã ẩn UI) | ✅ | ❌ |
+| Khuyến Mãi & Tặng Mã VIP | ✅ (Đã ẩn UI) | ✅ | ❌ |
 | Xem danh sách đơn hàng | ✅ (Đã ẩn UI) | ❌ | ✅ |
 | Lên đơn hàng cho khách | ✅ (Đã ẩn UI) | ❌ | ✅ |
 | **Duyệt đơn hàng** | ✅ (Thao tác tại Dashboard) | ❌ | ❌ |
@@ -325,7 +325,7 @@ Page Admin Project/
         ├── Dashboard.jsx       # Tổng quan + Nhật ký + 🆕 Toggle Cấu hình Hệ thống (Admin 1)
         ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh
         ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct, lịch sử đơn)
-        ├── Promotions.jsx      # 🆕 Quản lý mã giảm giá (Admin 1 bị ẩn UI)
+        ├── Promotions.jsx      # 🆕 Quản lý khuyến mãi, Kho mã Random & Giao diện tặng quà VIP
         ├── Orders.jsx          # 🆕 Fix đếm PROCESSING trong "Cần xử lý" — Admin 3 thấy đơn Admin 1 duyệt
         ├── Roles.jsx           # Phân quyền + 🆕 3 Toggle Cấu hình Hệ thống (Admin 1 bật/tắt thực tế)
         └── auth/               # Trang xác thực
@@ -544,4 +544,4 @@ npm run dev
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 24/03/2026 — Cấu hình hệ thống, tối ưu email, fix Admin 3*
+*📅 Tài liệu được cập nhật ngày: 26/03/2026 — Hoàn thiện hệ thống Khuyến mãi, sinh mã Random 1 lần và chức năng Tặng quà VIP hiện đại.*

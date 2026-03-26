@@ -28,20 +28,18 @@ type BackendOrder = {
   Status: string;
 };
 
-const statusMap: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: JSX.Element }> = {
   PENDING_COD:    { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" /> },
-  PENDING_ONLINE: { label: "Chờ thanh toán", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" /> },
+  PENDING_BANK:   { label: "Chờ duyệt (CK)", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiClock className="w-4 h-4" /> },
+  AWAITING_PAYMENT:{ label: "Chờ thanh toán", color: "text-orange-700", bg: "bg-orange-50 border-orange-200", icon: <HiClock className="w-4 h-4" /> },
   PROCESSING:     { label: "Đang xử lý", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" /> },
-  Shipped:        { label: "Đang giao", color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" /> },
-  "Dang giao":   { label: "Đang giao", color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" /> },
-  Delivered:      { label: "Đã giao", color: "text-green-700", bg: "bg-green-50 border-green-200", icon: <HiCheckCircle className="w-4 h-4" /> },
-  CANCELLED:      { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" /> },
-  Cancelled:      { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" /> },
-  Pending:        { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" /> },
+  SHIPPING:       { label: "Đang giao", color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200", icon: <HiTruck className="w-4 h-4" /> },
+  DELIVERED:      { label: "Đã giao", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiCheckCircle className="w-4 h-4" /> },
+  CANCELLED:      { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" /> }
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const s = statusMap[status] || { label: status, color: "text-stone-600", bg: "bg-stone-50 border-stone-200", icon: null };
+  const s = STATUS_CONFIG[status] || { label: status, color: "text-stone-600", bg: "bg-stone-50 border-stone-200", icon: null };
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${s.bg} ${s.color}`}>
       {s.icon}

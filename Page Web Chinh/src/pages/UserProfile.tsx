@@ -19,7 +19,11 @@ const UserProfile = () => {
   const [user, setUser] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "password" | "vouchers">("profile");
+  
+  // Vouchers state
+  const [vouchers, setVouchers] = useState<any[]>([]);
+  const [vouchersLoading, setVouchersLoading] = useState(false);
 
   const handleLogout = () => {
     store.dispatch(clearCart());
@@ -41,6 +45,24 @@ const UserProfile = () => {
       navigate("/login");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVouchers = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    setVouchersLoading(true);
+    try {
+      const res = await customFetch.get("/promotions/my-vouchers", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data?.success) {
+        setVouchers(res.data.data);
+      }
+    } catch (e) {
+      console.error("Lỗi lấy voucher:", e);
+    } finally {
+      setVouchersLoading(false);
     }
   };
 
@@ -94,6 +116,7 @@ const UserProfile = () => {
 
   useEffect(() => {
     fetchProfile();
+    fetchVouchers();
   }, []);
 
   if (loading) {
@@ -132,19 +155,26 @@ const UserProfile = () => {
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="flex border-b border-stone-200">
-            {(["profile", "password"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-4 text-sm font-medium transition-colors ${
-                  activeTab === tab
-                    ? "border-b-2 border-stone-800 text-stone-800"
-                    : "text-stone-500 hover:text-stone-700"
-                }`}
-              >
-                {tab === "profile" ? "Thông tin cá nhân" : "Đổi mật khẩu"}
-              </button>
-            ))}
+            {(["profile", "vouchers", "password"] as const).map((tab) => {
+              const tabNames = {
+                profile: "Thông tin cá nhân",
+                vouchers: "Voucher của tôi",
+                password: "Đổi mật khẩu"
+              };
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-4 text-sm font-medium transition-colors ${
+                    activeTab === tab
+                      ? "border-b-2 border-stone-800 text-stone-800 bg-stone-50/50"
+                      : "text-stone-500 hover:text-stone-700 hover:bg-stone-50/50"
+                  }`}
+                >
+                  {tabNames[tab]}
+                </button>
+              );
+            })}
           </div>
 
           <div className="px-8 py-8">
@@ -207,6 +237,57 @@ const UserProfile = () => {
                   {saving ? "Đang lưu..." : "Lưu thông tin"}
                 </button>
               </form>
+            )}
+
+            {/* Vouchers Tab */}
+            {activeTab === "vouchers" && (
+              <div className="flex flex-col gap-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-stone-800">Kho Voucher Đặc Quyền ✨</h3>
+                  <span className="text-sm font-medium text-stone-500">{vouchers.length} mã khả dụng</span>
+                </div>
+
+                {vouchersLoading ? (
+                  <div className="text-center py-10 text-stone-500 animate-pulse">Đang tải voucher...</div>
+                ) : vouchers.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {vouchers.map(v => (
+                      <div key={v.VoucherID} className="bg-gradient-to-r from-stone-50 to-stone-100/50 border border-stone-200 rounded-xl p-5 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-2 h-full bg-stone-800 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <span className="inline-block px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase rounded-md mb-2 tracking-wider">
+                              Giảm {v.DiscountPercent}%
+                            </span>
+                            <h4 className="font-mono text-xl font-bold tracking-widest text-stone-800 bg-white px-3 py-1.5 rounded border border-stone-200 shadow-sm inline-block">
+                              {v.Code}
+                            </h4>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(v.Code);
+                              toast.success("Đã sao chép mã vourcher!");
+                            }}
+                            className="w-8 h-8 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-800 hover:border-stone-400 transition-colors"
+                            title="Sao chép mã"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                          </button>
+                        </div>
+                        <div className="text-xs text-stone-500 font-medium">
+                          HSD: {new Date(v.EndDate).toLocaleDateString("vi-VN")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 px-4 border-2 border-dashed border-stone-200 rounded-xl">
+                    <div className="text-4xl mb-3">🎫</div>
+                    <h3 className="text-stone-700 font-semibold mb-1">Chưa có voucher nào</h3>
+                    <p className="text-stone-500 text-sm">Hãy mua sắm thêm để nhận mã giảm giá đặc quyền từ chúng tôi nhé.</p>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Change Password Tab */}

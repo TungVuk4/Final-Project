@@ -1,0 +1,66 @@
+[
+  {
+    "Field": "OrderID",
+    "Type": "int(11)",
+    "Null": "NO",
+    "Key": "PRI",
+    "Default": null,
+    "Extra": "auto_increment"
+  },
+  {
+    "Field": "UserID",
+    "Type": "int(11)",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "OrderDate",
+    "Type": "datetime",
+    "Null": "YES",
+    "Key": "",
+    "Default": "current_timestamp()",
+    "Extra": ""
+  },
+  {
+    "Field": "TotalAmount",
+    "Type": "decimal(12,2)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "Status",
+    "Type": "varchar(50)",
+    "Null": "NO",
+    "Key": "",
+    "Default": "Chờ xử lý",
+    "Extra": ""
+  },
+  {
+    "Field": "ShippingAddress",
+    "Type": "varchar(255)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "PromotionID",
+    "Type": "int(11)",
+    "Null": "YES",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "PaymentMethod",
+    "Type": "varchar(50)",
+    "Null": "YES",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  }
+]

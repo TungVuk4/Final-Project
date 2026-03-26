@@ -54,6 +54,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 // ── Status config ──────────────────────────────────────────────────
 const statusMap: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode; step: number }> = {
   PENDING_COD:       { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  PENDING_BANK:      { label: "Chờ duyệt (CK)", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
   AWAITING_PAYMENT:  { label: "Chờ thanh toán", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
   PENDING_ONLINE:    { label: "Chờ thanh toán", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
   Pending:           { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },

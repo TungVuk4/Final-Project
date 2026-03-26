@@ -168,4 +168,32 @@ router.get('/dashboard/charts', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------------------
+// [ADMIN 1] Top 3 khách hàng mua nhiều nhất (đã đăng ký)
+// GET /api/stats/top-customers
+// ----------------------------------------------------------------
+router.get('/top-customers', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        u.UserID,
+        u.FullName,
+        u.Email,
+        COUNT(o.OrderID) AS orderCount,
+        COALESCE(SUM(o.TotalAmount), 0) AS totalSpent
+      FROM Users u
+      JOIN Orders o ON o.UserID = u.UserID
+      WHERE u.Role != 'Admin'
+        AND o.Status NOT IN ('CANCELLED', 'Đã hủy')
+      GROUP BY u.UserID, u.FullName, u.Email
+      ORDER BY orderCount DESC, totalSpent DESC
+      LIMIT 3
+    `);
+    res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Lỗi khi lấy top khách hàng:', error);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 module.exports = router;
