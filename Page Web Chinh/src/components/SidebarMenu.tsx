@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { HiXMark, HiHome, HiShoppingBag, HiMagnifyingGlass, HiUser, HiArrowRightOnRectangle, HiUserPlus } from "react-icons/hi2";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAppSelector } from "../hooks";
+import { useTranslation } from "react-i18next";
 import { logout as authLogout } from "../features/auth/authSlice";
 import { store } from "../store";
 import { clearCart } from "../features/cart/cartSlice";
@@ -14,6 +15,7 @@ const SidebarMenu = ({
   isSidebarOpen: boolean;
   setIsSidebarOpen: (prev: boolean) => void;
 }) => {
+  const { t } = useTranslation();
   const [isAnimating, setIsAnimating] = useState(false);
   const { loginStatus, userInfo } = useAppSelector((state) => state.auth);
   const { productsInCart } = useAppSelector((state) => state.cart);
@@ -44,10 +46,10 @@ const SidebarMenu = ({
   const close = () => setIsSidebarOpen(false);
 
   const menuItems = [
-    { to: "/", label: "Home", icon: HiHome },
-    { to: "/shop", label: "Shop", icon: HiShoppingBag },
-    { to: "/search", label: "Search", icon: HiMagnifyingGlass },
-    { to: "/cart", label: `Cart ${cartCount > 0 ? `(${cartCount})` : ""}`, icon: HiShoppingBag },
+    { to: "/", label: t("menu.home", "Home"), icon: HiHome },
+    { to: "/shop", label: t("menu.shop", "Shop"), icon: HiShoppingBag },
+    { to: "/search", label: t("menu.search", "Search"), icon: HiMagnifyingGlass },
+    { to: "/cart", label: `${t("menu.cart", "Cart")} ${cartCount > 0 ? `(${cartCount})` : ""}`, icon: HiShoppingBag },
   ];
 
   return (
@@ -107,7 +109,7 @@ const SidebarMenu = ({
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-stone-800 truncate max-w-[160px]">
-                    {userInfo.fullName || "Khách hàng"}
+                    {userInfo.fullName || t("menu.guest", "Khách hàng")}
                   </p>
                   <p className="text-xs text-stone-500 truncate max-w-[160px]">{userInfo.email}</p>
                 </div>
@@ -147,14 +149,14 @@ const SidebarMenu = ({
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-all group"
                   >
                     <HiUser className="text-lg text-stone-500 group-hover:scale-110 transition-transform" />
-                    <span className="font-medium text-sm">My Profile</span>
+                    <span className="font-medium text-sm">{t("menu.profile", "My Profile")}</span>
                   </Link>
                   <button
                     onClick={logout}
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all group w-full text-left"
                   >
                     <HiArrowRightOnRectangle className="text-lg group-hover:scale-110 transition-transform" />
-                    <span className="font-medium text-sm">Logout</span>
+                    <span className="font-medium text-sm">{t("menu.logout", "Logout")}</span>
                   </button>
                 </>
               ) : (
@@ -165,7 +167,7 @@ const SidebarMenu = ({
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-all group"
                   >
                     <HiUser className="text-lg text-stone-500 group-hover:scale-110 transition-transform" />
-                    <span className="font-medium text-sm">Sign In</span>
+                    <span className="font-medium text-sm">{t("menu.sign_in", "Sign In")}</span>
                   </Link>
                   <Link
                     to="/register"
@@ -173,7 +175,7 @@ const SidebarMenu = ({
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-stone-900 text-white hover:bg-stone-800 transition-all group"
                   >
                     <HiUserPlus className="text-lg group-hover:scale-110 transition-transform" />
-                    <span className="font-medium text-sm">Create Account</span>
+                    <span className="font-medium text-sm">{t("menu.create_account", "Create Account")}</span>
                   </Link>
                 </>
               )}
@@ -183,7 +185,7 @@ const SidebarMenu = ({
           {/* Footer */}
           <div className="px-6 py-5 border-t border-stone-100">
             <p className="text-xs text-stone-400 text-center tracking-widest uppercase">
-              © 2026 Fashion Studio
+              {t("menu.rights", "© 2026 Fashion Studio")}
             </p>
           </div>
         </div>

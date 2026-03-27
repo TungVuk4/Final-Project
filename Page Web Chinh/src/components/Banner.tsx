@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const Banner = () => {
+  const { t } = useTranslation();
   const [loaded, setLoaded] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -50,7 +52,7 @@ const Banner = () => {
         >
           <div className="h-px w-12 bg-white/60" />
           <span className="text-white/80 text-xs tracking-[0.35em] uppercase font-medium">
-            2026 Collection
+            {t("home.collection_eyebrow", "2026 Collection")}
           </span>
           <div className="h-px w-12 bg-white/60" />
         </div>
@@ -71,8 +73,8 @@ const Banner = () => {
             transition: "transform 0.8s cubic-bezier(0.4,0,0.2,1), opacity 0.7s ease",
           }}
         >
-          Discover the Best<br />
-          <span style={{ color: "#f5c887" }}>Fashion</span> Collection
+          {t("home.hero_line1", "Discover the Best")}<br />
+          <span style={{ color: "#f5c887" }}>{t("home.hero_fashion", "Fashion")}</span> {t("home.hero_line2", "Collection")}
         </h1>
 
         {/* Subtitle */}
@@ -82,7 +84,7 @@ const Banner = () => {
           }`}
           style={{ transitionDelay: "0.4s" }}
         >
-          The High-Quality Collection · Premium Luxury Fashion
+          {t("home.subtitle", "The High-Quality Collection · Premium Luxury Fashion")}
         </p>
 
         {/* CTA Buttons */}
@@ -98,7 +100,7 @@ const Banner = () => {
                        tracking-[0.1em] uppercase text-sm h-12 flex items-center justify-center px-8
                        rounded-none transition-all duration-300 hover:bg-amber-50 hover:text-amber-900"
           >
-            Shop Now
+            {t("home.shop_now", "Shop Now")}
           </Link>
           <Link
             to="/shop"
@@ -106,7 +108,7 @@ const Banner = () => {
                        tracking-[0.1em] uppercase text-sm h-12 flex items-center justify-center px-8
                        rounded-none backdrop-blur-sm transition-all duration-300 hover:bg-white/10"
           >
-            See Collection
+            {t("home.see_collection", "See Collection")}
           </Link>
         </div>
 
@@ -117,7 +119,7 @@ const Banner = () => {
           }`}
           style={{ transitionDelay: "0.8s" }}
         >
-          <span className="text-white/50 text-xs tracking-[0.2em] uppercase">Scroll</span>
+          <span className="text-white/50 text-xs tracking-[0.2em] uppercase">{t("home.scroll", "Scroll")}</span>
           <div className="w-px h-10 bg-gradient-to-b from-white/50 to-transparent" />
         </div>
       </div>

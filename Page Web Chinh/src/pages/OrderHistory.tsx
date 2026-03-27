@@ -5,6 +5,7 @@ import { formatDate } from "../utils/formatDate";
 import { formatCurrency } from "../utils/formatCurrency";
 import { getAuthToken } from "../features/auth/authSlice";
 import { HiArrowLeft, HiShoppingBag, HiClock, HiCheckCircle, HiXCircle, HiTruck } from "react-icons/hi2";
+import { useTranslation } from "react-i18next";
 
 export const loader = async () => {
   const token = getAuthToken();
@@ -28,18 +29,21 @@ type BackendOrder = {
   Status: string;
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: JSX.Element }> = {
-  PENDING_COD:    { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" /> },
-  PENDING_BANK:   { label: "Chờ duyệt (CK)", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiClock className="w-4 h-4" /> },
-  AWAITING_PAYMENT:{ label: "Chờ thanh toán", color: "text-orange-700", bg: "bg-orange-50 border-orange-200", icon: <HiClock className="w-4 h-4" /> },
-  PROCESSING:     { label: "Đang xử lý", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" /> },
-  SHIPPING:       { label: "Đang giao", color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200", icon: <HiTruck className="w-4 h-4" /> },
-  DELIVERED:      { label: "Đã giao", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiCheckCircle className="w-4 h-4" /> },
-  CANCELLED:      { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" /> }
-};
+// getTranslatedStatus để dùng chung cho cả OrderHistory và SingleOrderHistory nếu cần
+export const getTranslatedStatusConfig = (t: any) => ({
+  PENDING_COD:    { label: t("orders.status.pending_cod", "Chờ xác nhận"), color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" /> },
+  PENDING_BANK:   { label: t("orders.status.pending_bank", "Chờ duyệt (CK)"), color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiClock className="w-4 h-4" /> },
+  AWAITING_PAYMENT:{ label: t("orders.status.awaiting_payment", "Chờ thanh toán"), color: "text-orange-700", bg: "bg-orange-50 border-orange-200", icon: <HiClock className="w-4 h-4" /> },
+  PROCESSING:     { label: t("orders.status.processing", "Đang xử lý"), color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" /> },
+  SHIPPING:       { label: t("orders.status.shipping", "Đang giao"), color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200", icon: <HiTruck className="w-4 h-4" /> },
+  DELIVERED:      { label: t("orders.status.delivered", "Đã giao"), color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiCheckCircle className="w-4 h-4" /> },
+  CANCELLED:      { label: t("orders.status.cancelled", "Đã hủy"), color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" /> }
+});
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const s = STATUS_CONFIG[status] || { label: status, color: "text-stone-600", bg: "bg-stone-50 border-stone-200", icon: null };
+  const { t } = useTranslation();
+  const config = getTranslatedStatusConfig(t);
+  const s = config[status as keyof typeof config] || { label: status, color: "text-stone-600", bg: "bg-stone-50 border-stone-200", icon: null };
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${s.bg} ${s.color}`}>
       {s.icon}
@@ -49,6 +53,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const OrderHistory = () => {
+  const { t } = useTranslation();
   const orders = useLoaderData() as BackendOrder[];
   const navigate = useNavigate();
 
@@ -75,9 +80,9 @@ const OrderHistory = () => {
           </button>
           <div>
             <h1 className="text-2xl font-light text-stone-800" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-              Lịch sử đơn hàng
+              {t("orders.history", "Lịch sử đơn hàng")}
             </h1>
-            <p className="text-stone-500 text-sm mt-0.5">{orders.length > 0 ? `${orders.length} đơn hàng` : "Chưa có đơn hàng"}</p>
+            <p className="text-stone-500 text-sm mt-0.5">{orders.length > 0 ? `${orders.length} ${t("orders.n_orders", "đơn hàng")}` : t("orders.no_orders", "Chưa có đơn hàng")}</p>
           </div>
         </div>
 
@@ -87,15 +92,15 @@ const OrderHistory = () => {
             <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-5">
               <HiShoppingBag className="w-10 h-10 text-stone-300" />
             </div>
-            <h2 className="text-xl font-medium text-stone-700 mb-2">Chưa có đơn hàng nào</h2>
-            <p className="text-stone-400 text-sm mb-8">Hãy bắt đầu mua sắm và đơn hàng của bạn sẽ xuất hiện ở đây.</p>
+            <h2 className="text-xl font-medium text-stone-700 mb-2">{t("orders.no_orders_found", "Chưa có đơn hàng nào")}</h2>
+            <p className="text-stone-400 text-sm mb-8">{t("orders.start_shopping", "Hãy bắt đầu mua sắm và đơn hàng của bạn sẽ xuất hiện ở đây.")}</p>
             <Link
               to="/shop"
               className="inline-flex items-center gap-2 bg-stone-900 text-white px-8 py-3 rounded-xl
                          hover:bg-amber-800 transition-colors font-medium text-sm"
             >
               <HiShoppingBag className="w-4 h-4" />
-              Mua sắm ngay
+              {t("orders.shop_now", "Mua sắm ngay")}
             </Link>
           </div>
         ) : (
@@ -114,7 +119,7 @@ const OrderHistory = () => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-stone-800 text-base">Đơn #{order.OrderID}</h3>
+                        <h3 className="font-semibold text-stone-800 text-base">{t("orders.order", "Đơn")} #{order.OrderID}</h3>
                         <StatusBadge status={order.Status} />
                       </div>
                       <p className="text-stone-400 text-sm mt-1">{formatDate(order.OrderDate)}</p>
@@ -124,7 +129,7 @@ const OrderHistory = () => {
                   {/* Amount + Action */}
                   <div className="flex items-center gap-4 sm:flex-shrink-0 sm:ml-auto pl-16 sm:pl-0">
                     <div className="text-right">
-                      <p className="text-xs text-stone-400 mb-0.5">Tổng tiền</p>
+                      <p className="text-xs text-stone-400 mb-0.5">{t("orders.total", "Tổng tiền")}</p>
                       <p className="font-bold text-stone-800 text-base">{formatCurrency(Number(order.TotalAmount || 0))}</p>
                     </div>
                     <Link
@@ -132,7 +137,7 @@ const OrderHistory = () => {
                       className="inline-flex items-center gap-1.5 bg-stone-900 text-white text-sm font-medium
                                  px-4 py-2 rounded-xl hover:bg-amber-800 transition-colors whitespace-nowrap"
                     >
-                      Chi tiết →
+                      {t("orders.details", "Chi tiết →")}
                     </Link>
                   </div>
                 </div>

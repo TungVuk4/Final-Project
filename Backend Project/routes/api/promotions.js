@@ -221,6 +221,7 @@ router.get("/my-vouchers", requireAuth, async (req, res) => {
         uv.VoucherID,
         uv.AssignedAt,
         uv.IsUsed,
+        uv.SpecificCode,
         p.PromotionID,
         p.Code,
         p.DiscountPercent,
@@ -228,10 +229,16 @@ router.get("/my-vouchers", requireAuth, async (req, res) => {
         p.EndDate
       FROM UserVouchers uv
       JOIN Promotions p ON uv.PromotionID = p.PromotionID
-      WHERE uv.UserID = ? AND p.IsActive = 1 AND p.EndDate >= NOW()
+      WHERE uv.UserID = ? AND p.IsActive = 1 AND p.EndDate >= NOW() AND uv.IsUsed = 0
       ORDER BY uv.AssignedAt DESC
     `, [userId]);
-    res.status(200).json({ success: true, data: rows });
+
+    const mappedRows = rows.map(r => ({
+      ...r,
+      Code: r.SpecificCode ? r.SpecificCode : r.Code
+    }));
+
+    res.status(200).json({ success: true, data: mappedRows });
   } catch (error) {
     console.error("Lỗi lấy voucher user:", error);
     res.status(500).json({ error: "Lỗi server" });

@@ -3,8 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import SidebarMenu from "./SidebarMenu";
 import { useState, useEffect } from "react";
 import { useAppSelector } from "../hooks";
+import { useTranslation } from "react-i18next";
 
 const Header = () => {
+  const { t, i18n } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { productsInCart } = useAppSelector((state) => state.cart);
@@ -40,7 +42,7 @@ const Header = () => {
                 : "text-stone-700 hover:bg-stone-100"
             }`}
             onClick={() => setIsSidebarOpen(true)}
-            aria-label="Mở menu"
+            aria-label={t("header.menu", "Mở menu")}
           >
             <HiBars3 className="text-2xl max-sm:text-xl" />
           </button>
@@ -58,13 +60,28 @@ const Header = () => {
 
           {/* Right Icons */}
           <div className="flex gap-0.5 items-center">
+            {/* Lang Toggle */}
+            <button
+              onClick={() => i18n.changeLanguage(i18n.language === "en" ? "vi" : "en")}
+              className={`px-3 py-1.5 mr-2 rounded-full text-[10px] font-black tracking-widest transition-all duration-300 border backdrop-blur-md flex items-center gap-1 ${
+                isTransparent 
+                  ? "border-white/30 text-white hover:bg-white/20" 
+                  : "border-stone-200 text-stone-600 hover:bg-stone-100 hover:text-stone-900 shadow-sm"
+              }`}
+              aria-label="Toggle Language"
+            >
+              <span className={i18n.language === "en" ? "opacity-100" : "opacity-40"}>EN</span>
+              <span className="w-px h-2.5 bg-current opacity-30"></span>
+              <span className={i18n.language === "vi" ? "opacity-100" : "opacity-40"}>VI</span>
+            </button>
+
             {/* Search */}
             <Link
               to="/search"
               className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 group ${
                 isTransparent ? "text-white hover:bg-white/20" : "text-stone-700 hover:bg-stone-100"
               }`}
-              aria-label="Tìm kiếm"
+              aria-label={t("header.search", "Tìm kiếm")}
             >
               <HiOutlineMagnifyingGlass className="text-xl transition-transform group-hover:rotate-12" />
             </Link>
@@ -75,7 +92,7 @@ const Header = () => {
               className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 flex items-center gap-1.5 group ${
                 isTransparent ? "text-white hover:bg-white/20" : "text-stone-700 hover:bg-stone-100"
               }`}
-              aria-label="Tài khoản"
+              aria-label={t("header.account", "Tài khoản")}
             >
               {loginStatus && userInfo && (
                 <span className={`text-xs font-medium hidden sm:block max-w-[80px] truncate transition-colors ${
@@ -93,7 +110,7 @@ const Header = () => {
               className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 relative group ${
                 isTransparent ? "text-white hover:bg-white/20" : "text-stone-700 hover:bg-stone-100"
               }`}
-              aria-label={`Giỏ hàng (${cartCount})`}
+              aria-label={`${t("header.cart", "Giỏ hàng")} (${cartCount})`}
             >
               <HiOutlineShoppingBag className="text-xl transition-transform group-hover:-rotate-6" />
               {cartCount > 0 && (

@@ -1,7 +1,7 @@
 
 
 interface WithNumberInputWrapperProps {
-  value?: number;
+  value?: number | string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   [key: string]: any;
 }

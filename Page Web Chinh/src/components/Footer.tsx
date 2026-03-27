@@ -1,14 +1,18 @@
 import SocialMediaFooter from "./SocialMediaFooter";
 import { Link } from "react-router-dom";
 import { HiArrowUpRight } from "react-icons/hi2";
+import { useTranslation } from "react-i18next";
 
-const footerLinks = {
-  "Client Service": ["After-sale Service", "Free Insurance", "Returns & Exchanges", "FAQ"],
-  "Our Brand": ["The Company", "The Excellence", "International Awards", "Our Story"],
-  "Collections": ["Luxury Edition", "Special Edition", "Summer Edition", "Unique Collection"],
-};
+const getFooterLinks = (t: any) => ({
+  [t("footer.client_service", "Client Service")]: [t("footer.after_sale"), t("footer.free_insurance"), t("footer.returns"), t("footer.faq")],
+  [t("footer.our_brand", "Our Brand")]: [t("footer.the_company"), t("footer.the_excellence"), t("footer.international_awards"), t("footer.our_story")],
+  [t("footer.collections", "Collections")]: [t("footer.luxury_edition"), t("footer.special_edition"), t("footer.summer_edition"), t("footer.unique_collection")],
+});
 
 const Footer = () => {
+  const { t } = useTranslation();
+  const footerLinks = getFooterLinks(t);
+
   return (
     <>
       <SocialMediaFooter />
@@ -27,13 +31,13 @@ const Footer = () => {
                 FASHION
               </h2>
               <p className="text-sm text-stone-400 leading-relaxed">
-                Premium luxury fashion for the modern connoisseur. Crafted with precision, designed for excellence.
+        {t("footer.desc", "Premium luxury fashion for the modern connoisseur. Crafted with precision, designed for excellence.")}
               </p>
               <Link
                 to="/shop"
                 className="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors group"
               >
-                Explore Collection
+                {t("footer.explore", "Explore Collection")}
                 <HiArrowUpRight className="text-lg transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
             </div>
@@ -56,9 +60,9 @@ const Footer = () => {
 
           {/* Bottom row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-stone-500 text-sm">© 2026 Fashion Studio. All rights reserved.</p>
+            <p className="text-stone-500 text-sm">{t("footer.rights", "© 2026 Fashion Studio. All rights reserved.")}</p>
             <div className="flex items-center gap-6">
-              {["Cookie Policy", "Privacy Policy", "Legal Notes"].map((item) => (
+              {[t("footer.cookie", "Cookie Policy"), t("footer.privacy", "Privacy Policy"), t("footer.legal", "Legal Notes")].map((item) => (
                 <span key={item} className="text-stone-500 hover:text-stone-300 text-xs transition-colors cursor-pointer tracking-wide">
                   {item}
                 </span>

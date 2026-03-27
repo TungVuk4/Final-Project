@@ -31,7 +31,7 @@ export default function Product() {
 
   const [product, setProduct] = useState({
     name: "", price: 0, category: null, discountPercent: 0,
-    stockQuantity: 100, description: "", images: []
+    stockQuantity: 100, description: "", images: [], sizes: []
   });
   const [uploadPreview, setUploadPreview] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
@@ -143,10 +143,11 @@ export default function Product() {
         ProductName: product.name,
         Price: product.price,
         CategoryID: product.category,
-        StockQuantity: product.stockQuantity || 100,
+        StockQuantity: product.stockQuantity || 0,
         DiscountPercent: product.discountPercent || 0,
         Description: product.description || "",
-        Images: imageFileName ? [{ FileName: imageFileName }] : []
+        Images: imageFileName ? [{ FileName: imageFileName }] : [],
+        Sizes: product.sizes || []
       };
       if (isEdit) {
         await axios.put(`${API_URL}/products/${product.id}`, payload, config);
@@ -217,12 +218,20 @@ export default function Product() {
         id: p.ProductID, name: p.ProductName, price: p.Price,
         category: p.CategoryID || null, discountPercent: p.DiscountPercent,
         stockQuantity: p.StockQuantity, description: p.Description,
-        images: p.firstImage ? [p.firstImage] : []
+        images: p.firstImage ? [p.firstImage] : [],
+        sizes: p.sizes || []
       });
       if (p.firstImage) setUploadPreview(`${IMG_URL}/${p.firstImage}`);
       setIsEdit(true);
     } else {
-      setProduct({ name: "", price: 0, category: null, discountPercent: 0, stockQuantity: 100, description: "", images: [] });
+      setProduct({ name: "", price: 0, category: null, discountPercent: 0, stockQuantity: 0, description: "", images: [], sizes: [
+        { NameSize: 'XS', StockQuantity: 10 },
+        { NameSize: 'SM', StockQuantity: 10 },
+        { NameSize: 'M', StockQuantity: 10 },
+        { NameSize: 'LG', StockQuantity: 10 },
+        { NameSize: 'XL', StockQuantity: 10 },
+        { NameSize: '2XL', StockQuantity: 10 },
+      ] });
       setIsEdit(false);
     }
     setProductDialog(true);
@@ -532,16 +541,75 @@ export default function Product() {
               />
             </div>
             <div style={{ width: "120px" }}>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tồn kho</label>
+              <label className="block flex gap-1 items-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                Tồn kho {product.sizes && product.sizes.length > 0 && <i className="pi pi-info-circle" title="Tổng kho tự động tính từ các Size" style={{color: '#9ca3af'}}></i>}
+              </label>
               <input
                 type="number"
                 value={product.stockQuantity}
+                disabled={product.sizes && product.sizes.length > 0}
                 onChange={(e) => setProduct({ ...product, stockQuantity: parseInt(e.target.value) || 0 })}
-                placeholder="100"
-                className="w-full px-4 py-3 rounded-xl text-white text-sm outline-none"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                placeholder="0"
+                className={`w-full px-4 py-3 rounded-xl text-white text-sm outline-none ${product.sizes && product.sizes.length > 0 ? "cursor-not-allowed opacity-60" : "hover:border-purple-500 transition-colors"}`}
+                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
               />
             </div>
+          </div>
+
+          {/* Quản lý Tồn kho Size */}
+          <div className="mt-1">
+             <div className="flex justify-between items-center mb-3">
+                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">{t("size_stock_management", "Quản lý Tồn kho Size")}</label>
+                 <button className="text-[10px] uppercase font-bold text-white px-3 py-1.5 rounded-md hover:bg-white/10 transition-colors border border-white/20"
+                         onClick={() => setProduct({...product, sizes: [...product.sizes, { NameSize: '', StockQuantity: 0 }]})}>
+                     {t("add_size", "+ Thêm Size")}
+                 </button>
+             </div>
+             
+             {product.sizes && product.sizes.length > 0 ? (
+                 <div className="flex flex-col gap-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                     {product.sizes.map((sz, index) => (
+                         <div key={index} className="flex gap-2 items-center">
+                             <input 
+                                 placeholder={t("size_name", "Size (XS, M...)")}
+                                 className="flex-1 px-3 py-2.5 rounded-lg text-white text-sm outline-none" 
+                                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                                 value={sz.NameSize}
+                                 onChange={(e) => {
+                                     const newSizes = [...product.sizes];
+                                     newSizes[index].NameSize = e.target.value.toUpperCase();
+                                     setProduct({...product, sizes: newSizes});
+                                 }}
+                             />
+                             <input 
+                                 type="number" min={0}
+                                 placeholder={t("size_stock", "Số lượng")}
+                                 className="w-24 px-3 py-2.5 rounded-lg text-white text-sm outline-none"
+                                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                                 value={sz.StockQuantity}
+                                 onChange={(e) => {
+                                     const newSizes = [...product.sizes];
+                                     newSizes[index].StockQuantity = parseInt(e.target.value) || 0;
+                                     const sumStock = newSizes.reduce((acc, curr) => acc + (curr.StockQuantity || 0), 0);
+                                     setProduct({...product, sizes: newSizes, stockQuantity: sumStock});
+                                 }}
+                             />
+                             <button className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all"
+                                     onClick={() => {
+                                         const newSizes = product.sizes.filter((_, i) => i !== index);
+                                         const sumStock = newSizes.reduce((acc, curr) => acc + (curr.StockQuantity || 0), 0);
+                                         setProduct({...product, sizes: newSizes, stockQuantity: sumStock});
+                                     }}>
+                                 <i className="pi pi-trash text-sm"></i>
+                             </button>
+                         </div>
+                     ))}
+                 </div>
+             ) : (
+                 <div className="text-center p-3 rounded-xl border border-dashed border-gray-600">
+                     <p className="text-gray-500 text-xs">{t("no_sizes", "Trống. Tồn kho chung = 0 nếu không có size.")}</p>
+                 </div>
+             )}
           </div>
 
           {/* Giá + Khuyến mãi */}

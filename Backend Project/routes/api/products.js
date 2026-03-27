@@ -148,6 +148,13 @@ router.get(
           [row.ProductID]
         );
         row.colors = colors;
+        
+        const [sizes] = await pool.query(
+          "SELECT NameSize, StockQuantity FROM Product_Sizes WHERE ProductID = ?",
+          [row.ProductID]
+        );
+        row.sizes = sizes;
+
         const [imgs] = await pool.query(
           "SELECT FileName FROM Image WHERE ProductID = ? LIMIT 1",
           [row.ProductID]

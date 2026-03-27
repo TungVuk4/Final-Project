@@ -128,19 +128,19 @@ export default function Promotions() {
   };
 
   const deletePromo = async (id) => {
-    if(!window.confirm("Bạn có chắc muốn xóa khuyến mãi này?")) return;
+    if(!window.confirm(t("msg_confirm_delete_promo", "Bạn có chắc muốn xóa khuyến mãi này?"))) return;
     try {
       const res = await axios.delete(`${API_URL}/promotions/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) {
-        toast.success("Đã xóa mã khuyến mãi");
+        toast.success(t("msg_promo_deleted", "Đã xóa mã khuyến mãi"));
         loadPromotions();
       }
-    } catch (e) { toast.error("Có lỗi xảy ra khi xóa."); }
+    } catch (e) { toast.error(t("msg_error_delete", "Có lỗi xảy ra khi xóa.")); }
   };
 
   const savePromo = async () => {
     if (!currentPromo.Code || !currentPromo.DiscountPercent || !currentPromo.StartDate || !currentPromo.EndDate) {
-      toast.error("Vui lòng điền đủ thông tin.");
+      toast.error(t("msg_fill_info", "Vui lòng điền đủ thông tin."));
       return;
     }
     const payload = {
@@ -153,21 +153,21 @@ export default function Promotions() {
     try {
       if (isEdit) {
         await axios.put(`${API_URL}/promotions/${currentPromo.PromotionID}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-        toast.success("Đã cập nhật mã khuyến mãi");
+        toast.success(t("msg_promo_updated", "Đã cập nhật mã khuyến mãi"));
       } else {
         await axios.post(`${API_URL}/promotions`, payload, { headers: { Authorization: `Bearer ${token}` } });
-        toast.success("Đã tạo mã khuyến mãi thành công");
+        toast.success(t("msg_promo_created", "Đã tạo mã khuyến mãi thành công"));
       }
       setDialogVisible(false);
       loadPromotions();
     } catch (e) {
-      toast.error(e.response?.data?.message || "Có lỗi xảy ra khi lưu mã.");
+      toast.error(e.response?.data?.message || t("msg_error_save", "Có lỗi xảy ra khi lưu mã."));
     }
   };
 
   const assignVipPromo = async () => {
     if (!selectedUser || !selectedPromo) {
-      toast.error("Vui lòng chọn đủ Khách hàng và Chiến dịch");
+      toast.error(t("msg_select_user_promo", "Vui lòng chọn đủ Khách hàng và Chiến dịch"));
       return;
     }
     try {
@@ -192,7 +192,7 @@ export default function Promotions() {
       if (res.data?.success) {
         setGeneratedCodes(res.data.data);
       }
-    } catch (e) { toast.error("Có lỗi xảy ra khi lấy danh sách mã."); }
+    } catch (e) { toast.error(t("msg_fetch_code_error", "Có lỗi xảy ra khi lấy danh sách mã.")); }
   };
 
   const openCodesDialog = (promo) => {
@@ -423,8 +423,8 @@ export default function Promotions() {
             <i className="pi pi-gift text-2xl text-white"></i>
           </div>
           <div className="flex flex-col">
-            <span className="font-black text-2xl text-slate-800 tracking-tight leading-none mb-1">Tặng Quà VIP</span>
-            <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">Tri ân khách hàng thân thiết</span>
+            <span className="font-black text-2xl text-slate-800 tracking-tight leading-none mb-1">{t("vip_gift_title", "Tặng Quà VIP")}</span>
+            <span className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">{t("vip_gift_subtitle", "Tri ân khách hàng thân thiết")}</span>
           </div>
         </div>}
         modal
@@ -435,12 +435,12 @@ export default function Promotions() {
         footer={
           <div className="px-8 pb-8 pt-2 bg-[#F8FAFC]/95 flex justify-end gap-3 border-none">
             <Button 
-                label="Hủy" 
+                label={t("cancel", "Hủy")} 
                 className="p-button-text text-slate-400 font-black text-xs tracking-widest hover:text-slate-600 active:scale-95 transition-all" 
                 onClick={() => setVipDialogVisible(false)} 
             />
             <Button 
-                label="GỬI TẶNG NGAY" 
+                label={t("send_gift_now", "GỬI TẶNG NGAY")} 
                 icon="pi pi-send" 
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 py-4 border-none rounded-2xl shadow-lg shadow-indigo-100 active:scale-95 transition-all text-sm tracking-tight" 
                 onClick={assignVipPromo} 
@@ -450,20 +450,20 @@ export default function Promotions() {
       >
         <div className="flex flex-col gap-8">
           <p className="text-slate-500 text-[13px] leading-relaxed font-medium bg-white/50 p-5 rounded-2xl border border-slate-100 shadow-sm">
-            Chọn 1 khách hàng từ <span className="text-indigo-600 font-bold">Top mua hàng</span> và một mã <span className="text-orange-600 font-bold">Voucher Đặc quyền</span> để gửi trực tiếp cho họ.
+            {t("vip_gift_desc_1", "Chọn 1 khách hàng từ ")}<span className="text-indigo-600 font-bold">{t("vip_gift_desc_top", "Top mua hàng")}</span>{t("vip_gift_desc_2", " và một mã ")}<span className="text-orange-600 font-bold">{t("vip_gift_desc_voucher", "Voucher Đặc quyền")}</span>{t("vip_gift_desc_3", " để gửi trực tiếp cho họ.")}
           </p>
           
           {/* User Selection */}
           <div className="flex flex-col gap-2.5">
             <label className="font-black text-[10px] text-slate-400 uppercase tracking-[0.2em] ml-1">
-              <i className="pi pi-user mr-1"></i> Đối tượng nhận quà
+              <i className="pi pi-user mr-1"></i> {t("gift_recipient", "Đối tượng nhận quà")}
             </label>
             <Dropdown 
               value={selectedUser} 
               onChange={(e) => setSelectedUser(e.value)} 
               options={topUsers} 
               optionLabel="FullName" 
-              placeholder="Tìm kiếm khách hàng VIP..." 
+              placeholder={t("search_vip", "Tìm kiếm khách hàng VIP...")} 
               filter 
               className="premium-dropdown w-full"
               panelClassName="premium-dropdown-panel"
@@ -477,7 +477,7 @@ export default function Promotions() {
                     <span className="text-[10px] text-slate-400">{user.Email}</span>
                   </div>
                   <div className="bg-indigo-50 px-2 py-1 rounded-lg text-[10px] font-black text-indigo-600 whitespace-nowrap">
-                    {user.orderCount} đơn
+                    {user.orderCount} {t("orders_count", "đơn")}
                   </div>
                 </div>
               )}
@@ -488,7 +488,7 @@ export default function Promotions() {
                     <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-[10px] text-indigo-500">
                       {user.FullName.charAt(0)}
                     </div>
-                    {user.FullName} ({user.orderCount} đơn)
+                    {user.FullName} ({user.orderCount} {t("orders_count", "đơn")})
                   </div>
                 );
               }}
@@ -498,7 +498,7 @@ export default function Promotions() {
           {/* Promo Selection */}
           <div className="flex flex-col gap-2.5">
             <label className="font-black text-[10px] text-slate-400 uppercase tracking-[0.2em] ml-1">
-              <i className="pi pi-ticket mr-1"></i> Loại Voucher gán tặng
+              <i className="pi pi-ticket mr-1"></i> {t("voucher_type", "Loại Voucher gán tặng")}
             </label>
             <Dropdown 
               value={selectedPromo} 
@@ -509,14 +509,14 @@ export default function Promotions() {
               }} 
               options={promotions.filter(p => p.IsActive)} 
               optionLabel="Code" 
-              placeholder="Chọn mã khuyến mãi..." 
+              placeholder={t("select_promo_code", "Chọn mã khuyến mãi...")} 
               className="premium-dropdown w-full"
               panelClassName="premium-dropdown-panel"
               itemTemplate={(promo) => (
                 <div className="flex items-center justify-between gap-4 py-1">
                   <div className="flex flex-col">
                     <span className="font-black text-indigo-600 tracking-widest text-sm">{promo.Code}</span>
-                    <span className="text-[10px] text-slate-400 font-bold">{promo.Description || 'Khuyến mãi đặc biệt'}</span>
+                    <span className="text-[10px] text-slate-400 font-bold">{promo.Description || t("special_promo", "Khuyến mãi đặc biệt")}</span>
                   </div>
                   <div className="bg-rose-50 px-3 py-1.5 rounded-xl text-xs font-black text-rose-500 border border-rose-100/50">
                     -{promo.DiscountPercent}%
@@ -538,14 +538,14 @@ export default function Promotions() {
           {selectedPromo && vipCodes.length > 0 && (
             <div className="flex flex-col gap-2.5 animate-fade-in">
               <label className="font-black text-[10px] text-amber-500 uppercase tracking-[0.2em] ml-1">
-                <i className="pi pi-star-fill mr-1"></i> Chọn mã cụ thể (Tùy chọn)
+                <i className="pi pi-star-fill mr-1"></i> {t("specific_code_opt", "Chọn mã cụ thể (Tùy chọn)")}
               </label>
               <Dropdown 
                 value={selectedVipCode} 
                 onChange={(e) => setSelectedVipCode(e.value)} 
                 options={vipCodes} 
                 optionLabel="CodeValue" 
-                placeholder="Chọn một mã Ticket riêng..." 
+                placeholder={t("select_specific_code", "Chọn một mã Ticket riêng...")} 
                 filter 
                 loading={loadingVipCodes}
                 className="premium-dropdown w-full border-amber-200 bg-amber-50/20"
@@ -560,7 +560,7 @@ export default function Promotions() {
                   return <span className="font-black text-indigo-700 tracking-widest text-sm">{code.CodeValue}</span>;
                 }}
               />
-              <p className="text-[10px] text-amber-600 font-bold italic ml-1">* Nếu bỏ trống, hệ thống sẽ tự động gán chiến dịch chung.</p>
+              <p className="text-[10px] text-amber-600 font-bold italic ml-1">{t("specific_code_note", "* Nếu bỏ trống, hệ thống sẽ tự động gán chiến dịch chung.")}</p>
             </div>
           )}
         </div>
@@ -575,9 +575,9 @@ export default function Promotions() {
             <i className="pi pi-qrcode text-3xl text-white"></i>
           </div>
           <div className="flex flex-col flex-1">
-            <span className="font-black text-2xl text-slate-800 tracking-tight leading-none mb-1.5 pt-1">Kho Mã Random</span>
+            <span className="font-black text-2xl text-slate-800 tracking-tight leading-none mb-1.5 pt-1">{t("random_code_vault", "Kho Mã Random")}</span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Hệ thống phát hành mã dùng 1 lần</span>
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">{t("single_use_system", "Hệ thống phát hành mã dùng 1 lần")}</span>
               <span className="h-1 w-1 rounded-full bg-slate-300"></span>
               <span className="text-[10px] font-bold text-slate-400">{selectedPromoForCodes?.Code}</span>
             </div>
@@ -595,15 +595,15 @@ export default function Promotions() {
             {/* Usage Stats Summary */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tổng số mã</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t("total_codes", "Tổng số mã")}</p>
                 <p className="text-xl font-black text-slate-700">{generatedCodes.length}</p>
               </div>
               <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Đã dùng</p>
+                <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t("used_codes", "Đã dùng")}</p>
                 <p className="text-xl font-black text-emerald-600">{generatedCodes.filter(c => c.IsUsed).length}</p>
               </div>
               <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Khả dụng</p>
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t("available_codes", "Khả dụng")}</p>
                 <p className="text-xl font-black text-indigo-600">{generatedCodes.filter(c => !c.IsUsed).length}</p>
               </div>
             </div>
@@ -612,19 +612,19 @@ export default function Promotions() {
             <div className="flex flex-col md:flex-row items-stretch md:items-end gap-5">
               <div className="flex-1 space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-1.5 ml-1">
-                  <i className="pi pi-pencil text-[10px]"></i> Tiền tố mã (Prefix)
+                  <i className="pi pi-pencil text-[10px]"></i> {t("code_prefix", "Tiền tố mã (Prefix)")}
                 </label>
                 <InputText 
                   value={codePrefix} 
                   onChange={(e) => setCodePrefix(e.target.value)} 
-                  placeholder="VD: KM-"
+                  placeholder={t("eg_prefix", "VD: KM-")}
                   className="w-full px-5 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-[20px] font-black text-slate-700 focus:border-indigo-400 focus:bg-white transition-all shadow-inner" 
                 />
               </div>
 
               <div className="w-full md:w-36 space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-1.5 ml-1">
-                  <i className="pi pi-plus text-[10px]"></i> Số lượng
+                  <i className="pi pi-plus text-[10px]"></i> {t("quantity", "Số lượng")}
                 </label>
                 <InputNumber 
                   value={codeQuantity} 
@@ -642,7 +642,7 @@ export default function Promotions() {
               </div>
 
               <Button 
-                label="TẠO MÃ" 
+                label={t("generate_codes", "TẠO MÃ")} 
                 icon="pi pi-bolt" 
                 className="w-full md:w-auto px-10 h-[52px] bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[20px] border-none shadow-lg shadow-indigo-100 transform active:scale-95 transition-all" 
                 onClick={generateSingleUseCodes} 
@@ -662,31 +662,31 @@ export default function Promotions() {
                 <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-4xl mt-4">
                   <i className="pi pi-ticket"></i>
                 </div>
-                <span className="font-bold text-sm tracking-tight text-slate-400">Chiến dịch này chưa phát hành mã con nào.</span>
+                <span className="font-bold text-sm tracking-tight text-slate-400">{t("no_sub_codes", "Chiến dịch này chưa phát hành mã con nào.")}</span>
               </div>}
               className="random-codes-table no-border-table" 
               rowHover
               responsiveLayout="scroll"
             >
-              <Column field="CodeValue" header="MÃ TICKET RANDOM" body={(r) => (
+              <Column field="CodeValue" header={t("random_ticket_code", "MÃ TICKET RANDOM")} body={(r) => (
                 <div className="flex items-center gap-3">
                   <span className="font-black text-slate-700 tracking-[0.1em] text-sm select-all bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">{r.CodeValue}</span>
                 </div>
               )} />
-              <Column field="IsUsed" header="TRẠNG THÁI" body={(r) => (
+              <Column field="IsUsed" header={t("status", "TRẠNG THÁI")} body={(r) => (
                 r.IsUsed ? (
                   <div className="inline-flex items-center gap-2 text-rose-500 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 pointer-events-none">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Đã dùng</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t("code_used", "Đã dùng")}</span>
                   </div>
                 ) : (
                   <div className="inline-flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 pointer-events-none">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Sẵn sàng</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t("code_ready", "Sẵn sàng")}</span>
                   </div>
                 )
               )} align="center" />
-              <Column field="CreatedAt" header="NGÀY TẠO" body={(r) => (
+              <Column field="CreatedAt" header={t("created_at", "NGÀY TẠO")} body={(r) => (
                 <span className="text-slate-400 font-black text-[11px] uppercase tracking-tighter">{new Date(r.CreatedAt).toLocaleDateString('vi-VN')}</span>
               )} align="right" />
             </DataTable>

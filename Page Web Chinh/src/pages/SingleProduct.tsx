@@ -16,14 +16,16 @@ import toast from "react-hot-toast";
 import { getImageUrl } from "../utils/formatImageUrl";
 import { formatCurrency } from "../utils/formatCurrency";
 import customFetch from "../axios/custom";
+import { useTranslation } from "react-i18next";
 
 const SingleProduct = () => {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
   const [singleProduct, setSingleProduct] = useState<Product | null>(null);
   // defining default values for input fields
   const [size, setSize] = useState<string>("xs");
   const [color, setColor] = useState<string>("black");
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number | "">(1);
   const params = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
   const { userInfo } = useAppSelector((state) => state.auth);
@@ -40,6 +42,11 @@ const SingleProduct = () => {
       );
       const data = await response.json();
       setSingleProduct(data);
+      if (data?.sizes?.length > 0) {
+        const firstAvailable = data.sizes.find((s: any) => s.StockQuantity > 0);
+        if (firstAvailable) setSize(firstAvailable.NameSize.toLowerCase());
+        else setSize(data.sizes[0].NameSize.toLowerCase());
+      }
     };
 
     const fetchProducts = async () => {
@@ -63,7 +70,7 @@ const SingleProduct = () => {
           price: (singleProduct.discountPercent && singleProduct.discountPercent > 0)
             ? singleProduct.price * (1 - singleProduct.discountPercent / 100)
             : singleProduct.price,
-          quantity,
+          quantity: quantity === "" ? 1 : quantity,
           size,
           color,
           popularity: singleProduct.popularity,
@@ -77,7 +84,7 @@ const SingleProduct = () => {
         try {
           await customFetch.post(
             "/cart/add",
-            { productId: singleProduct.id, quantity, size },
+            { productId: singleProduct.id, quantity: quantity === "" ? 1 : quantity, size },
             { headers: { Authorization: `Bearer ${token}` } }
           );
         } catch (error) {
@@ -94,7 +101,7 @@ const SingleProduct = () => {
           await customFetch.post("/cart/guest/add", {
             guestToken,
             productId: singleProduct.id,
-            quantity,
+            quantity: quantity === "" ? 1 : quantity,
             size,
           });
         } catch (error) {
@@ -143,14 +150,21 @@ const SingleProduct = () => {
           </div>
           <div className="flex flex-col gap-2">
             <SelectInputUpgrade
-              selectList={[
-                { id: "xs", value: "XS" },
-                { id: "sm", value: "SM" },
-                { id: "m", value: "M" },
-                { id: "lg", value: "LG" },
-                { id: "xl", value: "XL" },
-                { id: "2xl", value: "2XL" },
-              ]}
+              selectList={
+                singleProduct?.sizes && singleProduct.sizes.length > 0
+                  ? singleProduct.sizes.map((sz: any) => ({
+                      id: sz.NameSize.toLowerCase(),
+                      value: `${sz.NameSize}${sz.StockQuantity <= 0 ? ` - ${t("product.out_of_stock_size", "Hết hàng")}` : ""}`
+                    }))
+                  : [
+                      { id: "xs", value: "XS" },
+                      { id: "sm", value: "SM" },
+                      { id: "m", value: "M" },
+                      { id: "lg", value: "LG" },
+                      { id: "xl", value: "XL" },
+                      { id: "2xl", value: "2XL" },
+                    ]
+              }
               value={size}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                 setSize(() => e.target.value)
@@ -173,47 +187,66 @@ const SingleProduct = () => {
 
             <QuantityInputUpgrade
               value={quantity}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setQuantity(() => parseInt(e.target.value))
-              }
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const val = parseInt(e.target.value, 10);
+                setQuantity(Number.isNaN(val) ? "" : val);
+              }}
             />
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 mt-4">
             {singleProduct?.stock && singleProduct.stock > 0 ? (
-              <Button mode="brown" text="Add to cart" onClick={handleAddToCart} />
+              (() => {
+                const selectedSizeObj = singleProduct?.sizes?.find((s: any) => s.NameSize.toLowerCase() === size);
+                const isSizeOutOfStock = (singleProduct?.sizes?.length ?? 0) > 0 && selectedSizeObj && selectedSizeObj.StockQuantity <= 0;
+
+                return isSizeOutOfStock ? (
+                  <button disabled className="w-full bg-stone-300 text-white font-bold py-3 rounded-md uppercase tracking-wide cursor-not-allowed flex justify-center items-center gap-2">
+                    <i className="pi pi-ban"></i> {t("product.size_out_of_stock", "Size này đã hết hàng")}
+                  </button>
+                ) : (
+                  <>
+                    {selectedSizeObj && selectedSizeObj.StockQuantity > 0 && selectedSizeObj.StockQuantity <= 5 && (
+                        <p className="text-orange-500 font-bold text-center text-sm -mt-2">
+                          <i className="pi pi-clock mr-1"></i> {t("product.only_left", "Chỉ còn lại {{count}} sản phẩm cho size này!", { count: selectedSizeObj.StockQuantity })}
+                        </p>
+                    )}
+                    <Button mode="brown" text={t("product.add_to_cart", "Add to cart")} onClick={handleAddToCart} />
+                  </>
+                );
+              })()
             ) : (
               <button disabled className="w-full bg-red-500 text-white font-bold py-3 rounded-md uppercase tracking-wide opacity-80 cursor-not-allowed flex justify-center items-center gap-2">
-                <i className="pi pi-ban"></i> Đã hết hàng
+                <i className="pi pi-ban"></i> {t("product.out_of_stock", "Out of stock")}
               </button>
             )}
             <p className="text-secondaryBrown text-sm text-right">
-              Delivery estimated on the Friday, July 26
+              {t("product.delivery_est", "Delivery estimated within 2-4 business days.")}
             </p>
           </div>
           <div>
             {/* drowdown items */}
-            <Dropdown dropdownTitle="Description">
+            <Dropdown dropdownTitle={t("product.description", "Description")}>
               Lorem ipsum dolor, sit amet consectetur adipisicing elit. Labore
               quos deleniti, mollitia, vitae harum suscipit voluptatem quasi, ab
               assumenda accusantium rem praesentium accusamus quae quam tempore
               nostrum corporis eaque. Mollitia.
             </Dropdown>
 
-            <Dropdown dropdownTitle="Product Details">
+            <Dropdown dropdownTitle={t("product.details", "Product Details")}>
               Lorem ipsum dolor sit amet, consectetur adipisicing elit. Fuga ad
               at odio illo, necessitatibus, reprehenderit dolore voluptas ea
               consequuntur ducimus repellat soluta mollitia facere sapiente.
               Unde provident possimus hic dolore.
             </Dropdown>
 
-            <Dropdown dropdownTitle="Delivery Details">
-              Sản phẩm sẽ được giao trong vòng 2-4 ngày làm việc. Quý khách vui lòng kiểm tra kỹ số điện thoại và địa chỉ nhận hàng trước khi thanh toán.
+            <Dropdown dropdownTitle={t("product.delivery", "Delivery Details")}>
+              {t("product.delivery_est", "Sản phẩm sẽ được giao trong vòng 2-4 ngày làm việc. Quý khách vui lòng kiểm tra kỹ thông tin.")}
             </Dropdown>
 
             {/* BÌNH LUẬN & ĐÁNH GIÁ (REVIEWS) */}
             <div className="mt-8 border-t border-gray-200 pt-6">
               <h3 className="text-xl font-bold text-gray-800 mb-6 uppercase tracking-wide flex items-center gap-2">
-                <span className="text-orange-400">★</span> Đánh giá sản phẩm ({singleProduct?.reviews?.length || 0})
+                <span className="text-orange-400">★</span> {t("product.reviews", "Product Reviews")} ({singleProduct?.reviews?.length || 0})
               </h3>
               
               <div className="flex flex-col gap-5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
@@ -241,24 +274,24 @@ const SingleProduct = () => {
                   ))
                 ) : (
                   <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    <p>Chưa có đánh giá nào cho sản phẩm này.</p>
+                    <p>{t("product.no_reviews", "No reviews yet for this product.")}</p>
                   </div>
                 )}
               </div>
               
               {/* Form Gửi Review (Dành cho Client tương lai gắn API) */}
               <div className="mt-6 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                 <h4 className="font-semibold mb-3">Viết đánh giá của bạn</h4>
+                 <h4 className="font-semibold mb-3">{t("product.write_review", "Write your review")}</h4>
                  <div className="flex flex-col gap-3">
-                    <input type="text" placeholder="Tên của bạn" className="border py-2 px-3 rounded-md outline-none focus:border-brown-400 text-sm" id="reviewName" />
+                    <input type="text" placeholder={t("product.your_name", "Your Name")} className="border py-2 px-3 rounded-md outline-none focus:border-brown-400 text-sm" id="reviewName" />
                     <select className="border py-2 px-3 rounded-md outline-none text-sm" id="reviewRating">
-                      <option value="5">5 Sao - Rất tuyệt vời</option>
-                      <option value="4">4 Sao - Sản phẩm tốt</option>
-                      <option value="3">3 Sao - Tạm được</option>
-                      <option value="2">2 Sao - Không như mong đợi</option>
-                      <option value="1">1 Sao - Rất tệ</option>
+                      <option value="5">{t("product.star_5", "5 Stars - Excellent")}</option>
+                      <option value="4">{t("product.star_4", "4 Stars - Good")}</option>
+                      <option value="3">{t("product.star_3", "3 Stars - Average")}</option>
+                      <option value="2">{t("product.star_2", "2 Stars - Below Average")}</option>
+                      <option value="1">{t("product.star_1", "1 Star - Poor")}</option>
                     </select>
-                    <textarea placeholder="Chia sẻ cảm nhận..." rows={3} className="border py-2 px-3 rounded-md outline-none resize-none text-sm" id="reviewComment"></textarea>
+                    <textarea placeholder={t("product.share_thought", "Share your thoughts...")} rows={3} className="border py-2 px-3 rounded-md outline-none resize-none text-sm" id="reviewComment"></textarea>
                     <button 
                       onClick={async () => {
                         const name = (document.getElementById('reviewName') as HTMLInputElement).value;
@@ -285,7 +318,7 @@ const SingleProduct = () => {
                       }}
                       className="bg-black text-white hover:bg-gray-800 py-2 rounded-md font-medium transition-colors"
                     >
-                      Gửi Đánh Giá
+                      {t("product.submit_review", "Submit Review")}
                     </button>
                  </div>
               </div>
@@ -297,7 +330,7 @@ const SingleProduct = () => {
       {/* similar products */}
       <div>
         <h2 className="text-black/90 text-5xl mt-24 mb-12 text-center max-lg:text-4xl">
-          Similar Products
+          {t("product.similar", "Similar Products")}
         </h2>
         <div className="flex flex-wrap justify-between items-center gap-y-8 mt-12 max-xl:justify-start max-xl:gap-5 ">
           {products.slice(0, 3).map((product: Product) => (

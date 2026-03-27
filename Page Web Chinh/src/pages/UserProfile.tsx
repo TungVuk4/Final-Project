@@ -6,6 +6,7 @@ import { logout } from "../features/auth/authSlice";
 import { store } from "../store";
 import { clearCart } from "../features/cart/cartSlice";
 import { getAuthToken } from "../features/auth/authSlice";
+import { useTranslation } from "react-i18next";
 
 type ProfileData = {
   FullName: string;
@@ -15,6 +16,7 @@ type ProfileData = {
 };
 
 const UserProfile = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [user, setUser] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +135,7 @@ const UserProfile = () => {
         {/* Header Card */}
         <div className="bg-white rounded-2xl shadow-lg px-8 py-6 mb-6 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-stone-800">{user?.FullName || "Tài khoản của tôi"}</h1>
+            <h1 className="text-2xl font-semibold text-stone-800">{user?.FullName || t("profile.my_account", "Tài khoản của tôi")}</h1>
             <p className="text-stone-500 text-sm mt-0.5">{user?.Email}</p>
           </div>
           <div className="flex gap-3 flex-wrap">
@@ -141,13 +143,13 @@ const UserProfile = () => {
               to="/order-history"
               className="text-sm border border-stone-300 text-stone-700 px-4 py-2 rounded-lg hover:bg-stone-50 transition-colors"
             >
-              📦 Lịch sử đơn hàng
+              📦 {t("profile.order_history", "Lịch sử đơn hàng")}
             </Link>
             <button
               onClick={handleLogout}
               className="text-sm bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors"
             >
-              Đăng xuất
+              {t("profile.logout", "Đăng xuất")}
             </button>
           </div>
         </div>
@@ -157,9 +159,9 @@ const UserProfile = () => {
           <div className="flex border-b border-stone-200">
             {(["profile", "vouchers", "password"] as const).map((tab) => {
               const tabNames = {
-                profile: "Thông tin cá nhân",
-                vouchers: "Voucher của tôi",
-                password: "Đổi mật khẩu"
+                profile: t("profile.tab_profile", "Thông tin cá nhân"),
+                vouchers: t("profile.tab_vouchers", "Voucher của tôi"),
+                password: t("profile.tab_password", "Đổi mật khẩu")
               };
               return (
                 <button
@@ -182,7 +184,7 @@ const UserProfile = () => {
             {activeTab === "profile" && (
               <form onSubmit={handleUpdateProfile} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Họ và tên</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.fullname", "Họ và tên")}</label>
                   <input
                     name="fullName"
                     type="text"
@@ -194,18 +196,18 @@ const UserProfile = () => {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Email</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.email", "Email")}</label>
                   <input
                     type="email"
                     defaultValue={user?.Email}
                     disabled
                     className="border border-stone-200 rounded-lg px-4 py-3 text-base bg-stone-50 text-stone-400 cursor-not-allowed"
                   />
-                  <p className="text-xs text-stone-400">Email không thể thay đổi</p>
+                  <p className="text-xs text-stone-400">{t("profile.email_desc", "Email không thể thay đổi")}</p>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Số điện thoại</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.phone", "Số điện thoại")}</label>
                   <input
                     name="phone"
                     type="tel"
@@ -217,11 +219,11 @@ const UserProfile = () => {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Địa chỉ giao hàng</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.address", "Địa chỉ giao hàng")}</label>
                   <textarea
                     name="address"
                     defaultValue={user?.Address}
-                    placeholder="Số nhà, đường, quận/huyện, tỉnh/thành phố"
+                    placeholder={t("profile.address", "Địa chỉ giao hàng")}
                     rows={3}
                     className="border border-stone-300 rounded-lg px-4 py-3 text-base outline-none transition-all resize-none
                                focus:border-stone-600 focus:ring-2 focus:ring-stone-200"
@@ -234,7 +236,7 @@ const UserProfile = () => {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-medium py-3 px-6 rounded-lg
                              transition-all duration-200 disabled:opacity-60"
                 >
-                  {saving ? "Đang lưu..." : "Lưu thông tin"}
+                  {saving ? t("profile.saving", "Đang lưu...") : t("profile.save", "Lưu thông tin")}
                 </button>
               </form>
             )}
@@ -243,12 +245,12 @@ const UserProfile = () => {
             {activeTab === "vouchers" && (
               <div className="flex flex-col gap-5">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-bold text-stone-800">Kho Voucher Đặc Quyền ✨</h3>
-                  <span className="text-sm font-medium text-stone-500">{vouchers.length} mã khả dụng</span>
+                  <h3 className="text-lg font-bold text-stone-800">{t("profile.vip_vrs", "Kho Voucher Đặc Quyền ✨")}</h3>
+                  <span className="text-sm font-medium text-stone-500">{vouchers.length} {t("profile.avail", "mã khả dụng")}</span>
                 </div>
 
                 {vouchersLoading ? (
-                  <div className="text-center py-10 text-stone-500 animate-pulse">Đang tải voucher...</div>
+                  <div className="text-center py-10 text-stone-500 animate-pulse">{t("profile.loading", "Đang tải voucher...")}</div>
                 ) : vouchers.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {vouchers.map(v => (
@@ -257,7 +259,7 @@ const UserProfile = () => {
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <span className="inline-block px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase rounded-md mb-2 tracking-wider">
-                              Giảm {v.DiscountPercent}%
+                              {t("profile.off", "Giảm")} {v.DiscountPercent}%
                             </span>
                             <h4 className="font-mono text-xl font-bold tracking-widest text-stone-800 bg-white px-3 py-1.5 rounded border border-stone-200 shadow-sm inline-block">
                               {v.Code}
@@ -275,7 +277,7 @@ const UserProfile = () => {
                           </button>
                         </div>
                         <div className="text-xs text-stone-500 font-medium">
-                          HSD: {new Date(v.EndDate).toLocaleDateString("vi-VN")}
+                          {t("profile.exp", "HSD")}: {new Date(v.EndDate).toLocaleDateString("vi-VN")}
                         </div>
                       </div>
                     ))}
@@ -283,8 +285,8 @@ const UserProfile = () => {
                 ) : (
                   <div className="text-center py-12 px-4 border-2 border-dashed border-stone-200 rounded-xl">
                     <div className="text-4xl mb-3">🎫</div>
-                    <h3 className="text-stone-700 font-semibold mb-1">Chưa có voucher nào</h3>
-                    <p className="text-stone-500 text-sm">Hãy mua sắm thêm để nhận mã giảm giá đặc quyền từ chúng tôi nhé.</p>
+                    <h3 className="text-stone-700 font-semibold mb-1">{t("profile.empty_vr", "Chưa có voucher nào")}</h3>
+                    <p className="text-stone-500 text-sm">{t("profile.empty_vr_desc", "Hãy mua sắm thêm để nhận mã giảm giá đặc quyền từ chúng tôi nhé.")}</p>
                   </div>
                 )}
               </div>
@@ -294,7 +296,7 @@ const UserProfile = () => {
             {activeTab === "password" && (
               <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Mật khẩu hiện tại</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.cur_pass", "Mật khẩu hiện tại")}</label>
                   <input
                     name="oldPassword"
                     type="password"
@@ -305,18 +307,18 @@ const UserProfile = () => {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Mật khẩu mới</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.new_pass", "Mật khẩu mới")}</label>
                   <input
                     name="newPassword"
                     type="password"
-                    placeholder="Ít nhất 6 ký tự"
+                    placeholder="••••••••"
                     className="border border-stone-300 rounded-lg px-4 py-3 text-base outline-none transition-all
                                focus:border-stone-600 focus:ring-2 focus:ring-stone-200"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-stone-700">Xác nhận mật khẩu mới</label>
+                  <label className="text-sm font-medium text-stone-700">{t("profile.conf_pass", "Xác nhận mật khẩu mới")}</label>
                   <input
                     name="confirmPassword"
                     type="password"
@@ -332,7 +334,7 @@ const UserProfile = () => {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-medium py-3 px-6 rounded-lg
                              transition-all duration-200 disabled:opacity-60"
                 >
-                  {saving ? "Đang đổi..." : "Đổi mật khẩu"}
+                  {saving ? t("profile.changing", "Đang đổi...") : t("profile.change_pass", "Đổi mật khẩu")}
                 </button>
               </form>
             )}

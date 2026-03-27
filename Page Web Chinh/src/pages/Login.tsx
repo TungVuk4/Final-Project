@@ -5,8 +5,10 @@ import toast from "react-hot-toast";
 import { useEffect, useState } from "react";
 import { setUserInfo } from "../features/auth/authSlice";
 import { store } from "../store";
+import { useTranslation } from "react-i18next";
 
 const Login = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -18,7 +20,7 @@ const Login = () => {
     const password = formData.get("password") as string;
 
     if (!email || !password) {
-      toast.error("Vui lòng nhập đầy đủ email và mật khẩu");
+      toast.error(t("auth.enter_email_pass", "Vui lòng nhập đầy đủ email và mật khẩu"));
       return;
     }
 
@@ -64,10 +66,10 @@ const Login = () => {
         }
       }
 
-      toast.success(`Chào mừng trở lại, ${user.FullName}!`);
+      toast.success(t("auth.welcome_back", "Chào mừng trở lại, {{name}}!", { name: user.FullName }));
       navigate("/user-profile");
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "Email hoặc mật khẩu không đúng";
+      const msg = err?.response?.data?.message || t("auth.invalid_credentials", "Email hoặc mật khẩu không đúng");
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -89,7 +91,7 @@ const Login = () => {
           {/* Logo/Brand */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-light tracking-widest text-stone-800 uppercase">Fashion</h1>
-            <p className="text-stone-500 mt-2 text-sm">Đăng nhập vào tài khoản của bạn</p>
+            <p className="text-stone-500 mt-2 text-sm">{t("auth.login_desc", "Đăng nhập vào tài khoản của bạn")}</p>
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
@@ -110,9 +112,9 @@ const Login = () => {
             {/* Password */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-stone-700" htmlFor="password">Mật khẩu</label>
+                <label className="text-sm font-medium text-stone-700" htmlFor="password">{t("auth.password", "Mật khẩu")}</label>
                 <Link to="/forgot-password" className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
-                  Quên mật khẩu?
+                  {t("auth.forgot_password", "Quên mật khẩu?")}
                 </Link>
               </div>
               <div className="relative">
@@ -143,21 +145,21 @@ const Login = () => {
                          transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed
                          focus:outline-none focus:ring-2 focus:ring-stone-600 focus:ring-offset-2"
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {loading ? t("auth.logging_in", "Đang đăng nhập...") : t("auth.login", "Đăng nhập")}
             </button>
           </form>
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-stone-200"></div>
-            <span className="text-stone-400 text-sm">hoặc</span>
+            <span className="text-stone-400 text-sm">{t("auth.or", "hoặc")}</span>
             <div className="flex-1 h-px bg-stone-200"></div>
           </div>
 
           <p className="text-center text-sm text-stone-600">
-            Chưa có tài khoản?{" "}
+            {t("auth.no_account", "Chưa có tài khoản?")}{" "}
             <Link to="/register" className="font-medium text-stone-800 hover:underline">
-              Đăng ký ngay
+              {t("auth.register_now", "Đăng ký ngay")}
             </Link>
           </p>
         </div>

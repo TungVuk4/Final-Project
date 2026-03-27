@@ -91,7 +91,7 @@ Backend Project/
 | Nhóm | Prefix | Mô tả | Bảo vệ |
 |---|---|---|---|
 | Auth | `/api/auth-temp` | Đăng ký, đăng nhập, OTP, quên mật khẩu | Public |
-| Sản phẩm | `/api/products` | CRUD, lọc Color/Cat/Price, `POST /upload-image` (upload ảnh) | Public / Admin |
+| Sản phẩm | `/api/products` | CRUD, lọc, `POST /upload-image`, 🆕 Quản lý tồn kho chi tiết theo Size | Public / Admin |
 | Danh mục | `/api/categories` | 4 Bộ sưu tập chính (Luxury, Special, Summer, Unique) | Public / Admin |
 | Màu sắc | `/api/colors` | 🆕 6 màu cơ bản (BLACK, RED, BLUE...) | Public / Admin |
 | Giỏ hàng | `/api/cart` | User cart + 🆕 Guest cart (`/guest`, `/guest/add`, `/guest/remove`) | Customer Token / GuestToken |
@@ -189,7 +189,7 @@ const token =
 
 ## 2️⃣ Page Web Chinh — Web App Khách Hàng
 
-> **Công nghệ:** React 18 · TypeScript · Vite · Redux Toolkit · React Router v6 · Tailwind CSS · Axios
+> **Công nghệ:** React 18 · TypeScript · Vite · Redux Toolkit · React Router v6 · Tailwind CSS · Axios · i18next (Đa ngôn ngữ EN/VI)
 
 ### Cấu trúc
 
@@ -206,6 +206,7 @@ Page Web Chinh/
     ├── store.ts            # Redux Store (kết hợp các slices)
     ├── typings.d.ts        # Global TypeScript types
     ├── index.css           # Global styles
+    ├── i18n.ts             # 🆕 Cấu hình đa ngôn ngữ (i18next)
     ├── assets/             # Hình ảnh tĩnh (31 files)
     ├── axios/
     │   └── custom.ts       # Axios instance (baseURL → Backend :8080)
@@ -323,9 +324,9 @@ Page Admin Project/
     │   └── UserPopover.jsx # Popover thông tin user + nút Logout
     └── pages/              # Các trang quản trị
         ├── Dashboard.jsx       # Tổng quan + Nhật ký + 🆕 Toggle Cấu hình Hệ thống (Admin 1)
-        ├── Product.jsx         # Quản lý 4 Collection + 6 Colors + Upload ảnh
+        ├── Product.jsx         # Quản lý 4 Collection, 6 Colors, Upload ảnh & 🆕 Tồn kho theo Size
         ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct, lịch sử đơn)
-        ├── Promotions.jsx      # 🆕 Quản lý khuyến mãi, Kho mã Random & Giao diện tặng quà VIP
+        ├── Promotions.jsx      # 🆕 Quản lý khuyến mãi, Kho mã Random Code dùng 1 lần & Tặng quà VIP
         ├── Orders.jsx          # 🆕 Fix đếm PROCESSING trong "Cần xử lý" — Admin 3 thấy đơn Admin 1 duyệt
         ├── Roles.jsx           # Phân quyền + 🆕 3 Toggle Cấu hình Hệ thống (Admin 1 bật/tắt thực tế)
         └── auth/               # Trang xác thực
@@ -544,4 +545,4 @@ npm run dev
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 26/03/2026 — Hoàn thiện hệ thống Khuyến mãi, sinh mã Random 1 lần và chức năng Tặng quà VIP hiện đại.*
+*📅 Tài liệu được cập nhật ngày: 27/03/2026 — Hoàn thiện hệ thống Tồn kho chi tiết theo Size, Tích hợp 100% Đa ngôn ngữ (Bilingual EN/VI) cho Admin & Web, và Tối ưu logic Voucher VIP cá nhân hóa dùng 1 lần.*

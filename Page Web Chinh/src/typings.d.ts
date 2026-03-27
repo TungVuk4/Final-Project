@@ -7,6 +7,7 @@ interface Product {
   popularity: number;
   stock: number;
   discountPercent?: number;
+  sizes?: { NameSize: string; StockQuantity: number; }[];
   reviews?: any[];
 }
 

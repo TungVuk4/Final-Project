@@ -6,8 +6,10 @@ import {
   ShowingSearchPagination,
 } from "../components";
 import { Form, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const Search = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [currentPage, setCurrentPage] = useState<number>(
     parseInt(searchParams.get("page") || "1")
@@ -21,12 +23,12 @@ const Search = () => {
       >
         <input
           type="text"
-          placeholder="Search products"
+          placeholder={t("shop.search_placeholder", "Search products")}
           className="border border-gray-300 focus:border-gray-400 h-12 text-xl px-3 w-full outline-none max-sm:text-lg"
           name="searchInput"
         />
         <div className="w-52 max-sm:w-40">
-          <Button mode="brown" text="Search" type="submit" />
+          <Button mode="brown" text={t("shop.search_btn", "Search")} type="submit" />
         </div>
       </Form>
 

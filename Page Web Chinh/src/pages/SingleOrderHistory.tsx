@@ -13,6 +13,7 @@ import {
   HiArrowLeft, HiShoppingBag, HiMapPin, HiCreditCard,
   HiCheckCircle, HiXCircle, HiClock, HiTruck, HiArrowPath,
 } from "react-icons/hi2";
+import { useTranslation } from "react-i18next";
 
 // ── Types ──────────────────────────────────────────────────────────
 type OrderItem = {
@@ -52,34 +53,36 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 };
 
 // ── Status config ──────────────────────────────────────────────────
-const statusMap: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode; step: number }> = {
-  PENDING_COD:       { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
-  PENDING_BANK:      { label: "Chờ duyệt (CK)", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
-  AWAITING_PAYMENT:  { label: "Chờ thanh toán", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
-  PENDING_ONLINE:    { label: "Chờ thanh toán", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
-  Pending:           { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
-  "Chờ xử lý":      { label: "Chờ xác nhận", color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
-  PROCESSING:        { label: "Đang xử lý", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" />, step: 2 },
-  Processing:        { label: "Đang xử lý", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" />, step: 2 },
-  Shipped:           { label: "Đang giao", color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" />, step: 3 },
-  "Dang giao":       { label: "Đang giao", color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" />, step: 3 },
-  "Đang giao":       { label: "Đang giao", color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" />, step: 3 },
-  Delivered:         { label: "Đã giao thành công", color: "text-green-700", bg: "bg-green-50 border-green-200", icon: <HiCheckCircle className="w-4 h-4" />, step: 4 },
-  "Đã giao":         { label: "Đã giao thành công", color: "text-green-700", bg: "bg-green-50 border-green-200", icon: <HiCheckCircle className="w-4 h-4" />, step: 4 },
-  CANCELLED:         { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" />, step: 0 },
-  Cancelled:         { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" />, step: 0 },
-  "Đã hủy":          { label: "Đã hủy", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" />, step: 0 },
-};
+// ── Status config ──────────────────────────────────────────────────
+const getStatusMap = (t: any): Record<string, { label: string; color: string; bg: string; icon: React.ReactNode; step: number }> => ({
+  PENDING_COD:       { label: t("orders.status.pending_cod", "Chờ xác nhận"), color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  PENDING_BANK:      { label: t("orders.status.pending_bank", "Chờ duyệt (CK)"), color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  AWAITING_PAYMENT:  { label: t("orders.status.awaiting_payment", "Chờ thanh toán"), color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  PENDING_ONLINE:    { label: t("orders.status.awaiting_payment", "Chờ thanh toán"), color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  Pending:           { label: t("orders.status.pending_cod", "Chờ xác nhận"), color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  "Chờ xử lý":      { label: t("orders.status.pending_cod", "Chờ xác nhận"), color: "text-amber-700", bg: "bg-amber-50 border-amber-200", icon: <HiClock className="w-4 h-4" />, step: 1 },
+  PROCESSING:        { label: t("orders.status.processing", "Đang xử lý"), color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" />, step: 2 },
+  Processing:        { label: t("orders.status.processing", "Đang xử lý"), color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: <HiClock className="w-4 h-4" />, step: 2 },
+  Shipped:           { label: t("orders.status.shipping", "Đang giao"), color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" />, step: 3 },
+  "Dang giao":       { label: t("orders.status.shipping", "Đang giao"), color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" />, step: 3 },
+  "Đang giao":       { label: t("orders.status.shipping", "Đang giao"), color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: <HiTruck className="w-4 h-4" />, step: 3 },
+  Delivered:         { label: t("orders.status.delivered", "Đã giao thành công"), color: "text-green-700", bg: "bg-green-50 border-green-200", icon: <HiCheckCircle className="w-4 h-4" />, step: 4 },
+  "Đã giao":         { label: t("orders.status.delivered", "Đã giao thành công"), color: "text-green-700", bg: "bg-green-50 border-green-200", icon: <HiCheckCircle className="w-4 h-4" />, step: 4 },
+  CANCELLED:         { label: t("orders.status.cancelled", "Đã hủy"), color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" />, step: 0 },
+  Cancelled:         { label: t("orders.status.cancelled", "Đã hủy"), color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" />, step: 0 },
+  "Đã hủy":          { label: t("orders.status.cancelled", "Đã hủy"), color: "text-red-700", bg: "bg-red-50 border-red-200", icon: <HiXCircle className="w-4 h-4" />, step: 0 },
+});
 
-const steps = [
-  { label: "Đặt hàng", icon: <HiShoppingBag className="w-4 h-4" /> },
-  { label: "Xác nhận", icon: <HiCheckCircle className="w-4 h-4" /> },
-  { label: "Đang giao", icon: <HiTruck className="w-4 h-4" /> },
-  { label: "Hoàn thành", icon: <HiCheckCircle className="w-4 h-4" /> },
+const getTranslatedSteps = (t: any) => [
+  { label: t("orders.steps.placed", "Đặt hàng"), icon: <HiShoppingBag className="w-4 h-4" /> },
+  { label: t("orders.steps.confirmed", "Xác nhận"), icon: <HiCheckCircle className="w-4 h-4" /> },
+  { label: t("orders.steps.shipping", "Đang giao"), icon: <HiTruck className="w-4 h-4" /> },
+  { label: t("orders.steps.completed", "Hoàn thành"), icon: <HiCheckCircle className="w-4 h-4" /> },
 ];
 
 // ── Component ─────────────────────────────────────────────────────
 const SingleOrderHistory = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const loaderData = useLoaderData() as SingleOrder;
   // State riêng để có thể cập nhật real-time khi admin thay đổi
@@ -118,16 +121,19 @@ const SingleOrderHistory = () => {
       <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
         <div className="text-center">
           <div className="text-5xl mb-4">❌</div>
-          <h2 className="text-xl font-medium text-stone-700 mb-4">Không tìm thấy đơn hàng</h2>
+          <h2 className="text-xl font-medium text-stone-700 mb-4">{t("orders.not_found", "Không tìm thấy đơn hàng")}</h2>
           <Link to="/order-history" className="text-amber-700 hover:text-amber-900 underline text-sm">
-            ← Quay lại lịch sử đơn hàng
+            {t("orders.back_to_history", "← Quay lại lịch sử đơn hàng")}
           </Link>
         </div>
       </div>
     );
   }
 
-  const sInfo = statusMap[order.Status] || {
+  const currentStatusMap = getStatusMap(t);
+  const steps = getTranslatedSteps(t);
+
+  const sInfo = currentStatusMap[order.Status] || {
     label: order.Status, color: "text-stone-600", bg: "bg-stone-50 border-stone-200", icon: null, step: 1,
   };
   const isCancelled = ["CANCELLED", "Cancelled"].includes(order.Status);
@@ -153,7 +159,7 @@ const SingleOrderHistory = () => {
             </button>
             <div>
               <h1 className="text-2xl font-light text-stone-800" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                Đơn hàng #{order.OrderID}
+                {t("orders.order", "Đơn hàng")} #{order.OrderID}
               </h1>
               <p className="text-stone-400 text-sm">{formatDate(order.OrderDate)}</p>
             </div>
@@ -161,7 +167,7 @@ const SingleOrderHistory = () => {
 
           {/* Manual refresh + last updated */}
           <div className="flex items-center gap-2 text-xs text-stone-400">
-            <span className="hidden sm:block">Cập nhật: {lastUpdated.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="hidden sm:block">{t("orders.last_updated", "Cập nhật:")} {lastUpdated.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</span>
             <button
               onClick={() => fetchLatest(false)}
               className={`w-8 h-8 rounded-full bg-white border border-stone-200 flex items-center justify-center
@@ -219,8 +225,8 @@ const SingleOrderHistory = () => {
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
             <HiXCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
             <div>
-              <p className="font-medium text-red-700">Đơn hàng đã bị hủy</p>
-              <p className="text-red-500 text-sm">Vui lòng liên hệ chúng tôi nếu có thắc mắc.</p>
+              <p className="font-medium text-red-700">{t("orders.cancelled_title", "Đơn hàng đã bị hủy")}</p>
+              <p className="text-red-500 text-sm">{t("orders.cancelled_desc", "Vui lòng liên hệ chúng tôi nếu có thắc mắc.")}</p>
             </div>
           </div>
         )}
@@ -229,7 +235,7 @@ const SingleOrderHistory = () => {
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden mb-4">
           <div className="px-6 py-4 border-b border-stone-50">
             <h2 className="font-semibold text-stone-700 text-sm uppercase tracking-widest">
-              Sản phẩm ({order.items?.length || 0})
+              {t("orders.products", "Sản phẩm")} ({order.items?.length || 0})
             </h2>
           </div>
           <div className="divide-y divide-stone-50">
@@ -258,7 +264,7 @@ const SingleOrderHistory = () => {
                       -{item.DiscountPercent}%
                     </span>
                   )}
-                  <p className="text-stone-400 text-xs mt-0.5">Số lượng: {item.Quantity}</p>
+                  <p className="text-stone-400 text-xs mt-0.5">{t("orders.qty", "Số lượng:")} {item.Quantity}</p>
                 </div>
                 {/* Price — UnitPrice đã là giá sau giảm */}
                 <div className="text-right flex-shrink-0">
@@ -266,7 +272,7 @@ const SingleOrderHistory = () => {
                     {formatCurrency(item.UnitPrice * item.Quantity)}
                   </p>
                   <p className="text-stone-400 text-xs">
-                    {formatCurrency(item.UnitPrice)} / sản phẩm
+                    {formatCurrency(item.UnitPrice)} {t("orders.per_item", "/ sản phẩm")}
                   </p>
                 </div>
               </div>
@@ -279,18 +285,18 @@ const SingleOrderHistory = () => {
           {/* Shipping info */}
           <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">
-              Thông tin giao hàng
+              {t("orders.shipping_info", "Thông tin giao hàng")}
             </h3>
             <div className="flex items-start gap-2 text-stone-700 text-sm">
               <HiMapPin className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{order.ShippingAddress || "Chưa có địa chỉ"}</span>
+              <span className="leading-relaxed">{order.ShippingAddress || t("orders.no_address", "Chưa có địa chỉ")}</span>
             </div>
           </div>
 
           {/* Payment summary */}
           <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-3">
-              Thanh toán
+              {t("orders.payment", "Thanh toán")}
             </h3>
             <div className="flex items-center gap-2 text-stone-700 text-sm mb-4">
               <HiCreditCard className="w-4 h-4 text-amber-600" />
@@ -298,15 +304,15 @@ const SingleOrderHistory = () => {
             </div>
             <div className="border-t border-stone-50 pt-3 space-y-1.5">
               <div className="flex justify-between text-sm text-stone-500">
-                <span>Tạm tính</span>
+                <span>{t("orders.subtotal", "Tạm tính")}</span>
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-stone-500">
-                <span>Phí giao hàng</span>
-                <span className="text-green-600 font-medium">Miễn phí</span>
+                <span>{t("orders.shipping_fee", "Phí giao hàng")}</span>
+                <span className="text-green-600 font-medium">{t("orders.free", "Miễn phí")}</span>
               </div>
               <div className="flex justify-between font-bold text-stone-800 text-base border-t border-stone-100 pt-2 mt-2">
-                <span>Tổng cộng</span>
+                <span>{t("orders.total_sum", "Tổng cộng")}</span>
                 <span>{formatCurrency(total)}</span>
               </div>
             </div>
@@ -320,7 +326,7 @@ const SingleOrderHistory = () => {
             className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-800 text-sm transition-colors"
           >
             <HiArrowLeft className="w-4 h-4" />
-            Xem tất cả đơn hàng
+            {t("orders.view_all", "Xem tất cả đơn hàng")}
           </Link>
         </div>
 

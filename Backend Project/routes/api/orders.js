@@ -156,13 +156,39 @@ router.post("/checkout", requireAuth, async (req, res) => {
               [PromotionCode]
           );
           if (promoRows.length > 0) {
-              discount = promoRows[0].DiscountPercent / 100;
-              promotionId = promoRows[0].PromotionID;
-              // Mark voucher as used if assigned to user
-              await connection.query(
-                  "UPDATE UserVouchers SET IsUsed = 1 WHERE UserID = ? AND PromotionID = ?",
-                  [userId, promotionId]
+              const promoId = promoRows[0].PromotionID;
+              
+              const [userVoucher] = await connection.query(
+                  "SELECT IsUsed FROM UserVouchers WHERE UserID = ? AND PromotionID = ?",
+                  [userId, promoId]
               );
+              
+              if (userVoucher.length > 0 && userVoucher[0].IsUsed === 1) {
+                  await connection.rollback();
+                  return res.status(400).json({ message: "Mã khuyến mãi này bạn đã sử dụng, mỗi mã chỉ dùng được 1 lần!" });
+              }
+              
+              const [orderUsed] = await connection.query(
+                  "SELECT OrderID FROM Orders WHERE UserID = ? AND PromotionID = ? AND Status != 'CANCELLED'",
+                  [userId, promoId]
+              );
+              if (orderUsed.length > 0) {
+                  await connection.rollback();
+                  return res.status(400).json({ message: "Mã khuyến mãi này bạn đã sử dụng cho đơn hàng trước đó!" });
+              }
+
+              discount = promoRows[0].DiscountPercent / 100;
+              promotionId = promoId;
+              
+              if (userVoucher.length > 0) {
+                  await connection.query(
+                      "UPDATE UserVouchers SET IsUsed = 1 WHERE UserID = ? AND PromotionID = ?",
+                      [userId, promotionId]
+                  );
+              }
+          } else {
+              await connection.rollback();
+              return res.status(400).json({ message: "Mã khuyến mãi không hợp lệ hoặc đã hết hạn." });
           }
         }
     }
@@ -375,8 +401,24 @@ router.post("/guest-checkout", async (req, res) => {
                 [PromotionCode]
             );
             if (promoRows.length > 0) {
+                const promoId = promoRows[0].PromotionID;
+                
+                if (CustomerEmail) {
+                    const [orderUsed] = await connection.query(
+                        "SELECT OrderID FROM Orders WHERE GuestEmail = ? AND PromotionID = ? AND Status != 'CANCELLED'",
+                        [CustomerEmail, promoId]
+                    );
+                    if (orderUsed.length > 0) {
+                        await connection.rollback();
+                        return res.status(400).json({ message: "Email này đã sử dụng mã khuyến mãi này rồi!" });
+                    }
+                }
+
                 discount = promoRows[0].DiscountPercent / 100;
-                promotionId = promoRows[0].PromotionID;
+                promotionId = promoId;
+            } else {
+                await connection.rollback();
+                return res.status(400).json({ message: "Mã khuyến mãi không hợp lệ hoặc đã hết hạn." });
             }
         }
     }

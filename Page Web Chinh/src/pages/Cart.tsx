@@ -11,8 +11,10 @@ import customFetch from "../axios/custom";
 import toast from "react-hot-toast";
 import { getImageUrl } from "../utils/formatImageUrl";
 import { formatCurrency } from "../utils/formatCurrency";
+import { useTranslation } from "react-i18next";
 
 const Cart = () => {
+  const { t } = useTranslation();
   const { productsInCart, subtotal } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
   const token = getAuthToken();
@@ -106,9 +108,9 @@ const Cart = () => {
     <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 px-4 py-10">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-light tracking-wide text-stone-800 mb-8">
-          Giỏ hàng của bạn
+          {t("cart.your_cart", "Your Cart")}
           <span className="ml-3 text-lg text-stone-400 font-normal">
-            ({productsInCart.length} sản phẩm)
+            ({productsInCart.length} {t("cart.items", "items")})
           </span>
         </h1>
 
@@ -116,13 +118,13 @@ const Cart = () => {
           /* Empty Cart */
           <div className="bg-white rounded-2xl shadow-lg p-16 text-center">
             <div className="text-7xl mb-4">🛒</div>
-            <h2 className="text-xl font-medium text-stone-700 mb-2">Giỏ hàng đang trống</h2>
-            <p className="text-stone-500 mb-8">Thêm sản phẩm vào giỏ để bắt đầu mua sắm nhé!</p>
+            <h2 className="text-xl font-medium text-stone-700 mb-2">{t("cart.empty_title", "Cart is empty")}</h2>
+            <p className="text-stone-500 mb-8">{t("cart.empty_desc", "Add products to start shopping!")}</p>
             <Link
               to="/shop"
               className="inline-block bg-stone-800 text-white px-8 py-3 rounded-lg hover:bg-stone-900 transition-colors font-medium"
             >
-              Khám phá sản phẩm
+              {t("cart.explore", "Explore products")}
             </Link>
           </div>
         ) : (
@@ -160,9 +162,9 @@ const Cart = () => {
                         </div>
                         {/* Stock indicator */}
                         {product.stock > 0 ? (
-                          <span className="text-xs text-green-600 mt-1 block">✓ Còn hàng</span>
+                          <span className="text-xs text-green-600 mt-1 block">✓ {t("cart.in_stock", "In stock")}</span>
                         ) : (
-                          <span className="text-xs text-red-500 mt-1 block">✗ Hết hàng</span>
+                          <span className="text-xs text-red-500 mt-1 block">✗ {t("cart.out_of_stock", "Out of stock")}</span>
                         )}
                       </div>
                       {/* Remove button */}
@@ -219,19 +221,19 @@ const Cart = () => {
             {/* Order Summary (Sticky) */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
-                <h2 className="text-lg font-semibold text-stone-800 mb-5">Tóm tắt đơn hàng</h2>
+                <h2 className="text-lg font-semibold text-stone-800 mb-5">{t("cart.summary", "Order Summary")}</h2>
 
                 <div className="flex flex-col gap-3 text-sm">
                   <div className="flex justify-between text-stone-600">
-                    <span>Tạm tính</span>
+                    <span>{t("cart.subtotal", "Subtotal")}</span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-stone-600">
-                    <span>Phí vận chuyển</span>
-                    <span className="text-green-600">{subtotal === 0 ? formatCurrency(0) : "Miễn phí"}</span>
+                    <span>{t("cart.shipping", "Shipping")}</span>
+                    <span className="text-green-600">{subtotal === 0 ? formatCurrency(0) : t("cart.free", "Free")}</span>
                   </div>
                   <div className="border-t border-stone-200 pt-3 flex justify-between font-semibold text-stone-800 text-base">
-                    <span>Tổng cộng</span>
+                    <span>{t("cart.total", "Total")}</span>
                     <span>{formatCurrency(subtotal)}</span>
                   </div>
                 </div>
@@ -240,18 +242,18 @@ const Cart = () => {
                   to="/checkout"
                   className="mt-6 block w-full bg-stone-800 hover:bg-stone-900 text-white text-center font-medium py-3 rounded-lg transition-colors"
                 >
-                  Tiến hành thanh toán →
+                  {t("cart.checkout", "Proceed to Checkout")} &rarr;
                 </Link>
                 <Link
                   to="/shop"
                   className="mt-3 block w-full text-center text-sm text-stone-500 hover:text-stone-700 transition-colors"
                 >
-                  ← Tiếp tục mua sắm
+                  &larr; {t("cart.continue_shopping", "Continue Shopping")}
                 </Link>
 
                 {!token && (
                   <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                    💡 <Link to="/login" className="underline font-medium">Đăng nhập</Link> để lưu giỏ hàng và nhận ưu đãi
+                    💡 <Link to="/login" className="underline font-medium">{t("cart.login_prompt", "Login")}</Link>{t("cart.login_desc", " to save cart and get offers")}
                   </div>
                 )}
               </div>
