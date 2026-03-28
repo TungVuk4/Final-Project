@@ -22,9 +22,7 @@
 // Thay URL ở đây khi tunneling hoặc khi deploy lên production
 
 // URL trỏ vào Web App của bạn (Page Web Chinh)
-export const WEB_URL = 'http://10.0.2.2:5173'; // Android Emulator
-// export const WEB_URL = 'http://localhost:5173'; // iOS Simulator
-// export const WEB_URL = 'https://xxxx.ngrok-free.app'; // khi dùng ngrok với điện thoại thật
+export const WEB_URL = 'http://10.0.2.2:5174'; // Android Emulator — 10.0.2.2 là địa chỉ chuẩn Android để kết nối về máy host
 
 // URL trỏ vào Backend API (dùng cho debug nếu cần gọi API trực tiếp từ App)
 export const API_URL = 'http://10.0.2.2:8080'; // Android Emulator

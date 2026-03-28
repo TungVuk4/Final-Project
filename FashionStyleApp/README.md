@@ -1,97 +1,70 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# FashionStyle Mobile App
 
-# Getting Started
+Chào mừng đến với dự án Mobile App của hệ thống thương mại điện tử FashionStyle! App này đóng vai trò là cầu nối mang giao diện siêu mượt mà của gian hàng Web lên nền tảng Mobile (Android & iOS).
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 📐 Kiến Trúc Thực Hiện (Architecture)
 
-## Step 1: Start Metro
+Đây là một ứng dụng di động **Hybrid (Lai)** được phát triển trên nền tảng **React Native**.
+Thay vì lập trình lại toàn bộ giao diện từ số 0 bằng mã C++/Java thuần túy, ứng dụng này sử dụng kiến trúc **WebView Wrapper** vô cùng thông minh:
+1. **Lớp vỏ Native (React Native):** Khởi tạo một bộ khung phần mềm của hệ điều hành, đảm nhận việc xin quyền hệ thống, theo dõi phần cứng, loại bỏ rào cản mạng (ClearText Traffic) và duy trì sự ổn định.
+2. **Lõi Giao Diện (WebView):** Bên trong lớp vỏ, ứng dụng nhúng trực tiếp giao diện linh hoạt từ dự án web Vite (`Page Web Chinh`). WebView sẽ đóng vai trò như một lõi trình duyệt tối tân không viền.
+3. **Kết Nối Dữ Liệu:** Toàn bộ dữ liệu sản phẩm, đăng nhập, giỏ hàng đều được truyền động bộ hóa song song giữa App, Web và Backend thông qua cổng hầm ảo (ADB Reverse Tunnel).
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+---
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## 🚀 Hướng Dẫn Kích Hoạt Dự Án (Từ A đến Z)
 
-```sh
-# Using npm
+Do ứng dụng có mô hình phụ thuộc vào Web và Backend nội bộ, bạn cần thực hiện MỞ/CHẠY theo đúng trình tự sau để không bao giờ bị dính lỗi "Màn hình trắng" hay "Màn hình đen xoay liên tục":
+
+### Bước 1: Khởi động hệ sinh thái chính
+1. Khởi động phần mềm **Backend Project** (Spring Boot 8080) và chắc chắn Database đã lên.
+2. Bật Terminal chạy dự án Web Chính (**Page Web Chinh**) bằng lệnh:
+   ```bash
+   npm run dev
+   ```
+   *Quá trình này sẽ sử dụng cổng `5174` (hoặc cổng cấu hình khai báo trong `vite.config.ts`).*
+
+### Bước 2: Bật máy ảo điện thoại (Emulator)
+- Mở **Android Studio**, vào **Device Manager** và bật máy ảo Pixel lên (nhấn nút Play). Chờ tới khi màn hình điện thoại Android hiện lên rõ ràng và có thể lướt được.
+
+### Bước 3: Đào hầm bảo mật truyền tải dữ liệu (ADB Reverse Tunnel)
+Cắm "cáp mạng ảo" để điện thoại điện tử hiểu và liên kết với máy phân tích số trên Windows. Mở 1 cửa sổ Powershell/Terminal MỚI và dán dứt điểm lệnh này:
+
+```bash
+adb reverse tcp:8081 tcp:8081
+adb reverse tcp:8080 tcp:8080
+```
+> **Giải thích siêu kĩ:** Lệnh trên ép cổng `8080` (Của Backend) và cổng `8081` (Của Metro React Native) truyền tín hiệu xuyên âm tầng vào máy ảo Android. Nhờ đó điện thoại Android mới chọc vào được Database ở máy Windows.
+
+### Bước 4: Khởi động Trạm phát Metro
+Mở cửa sổ Terminal ngay tại thư mục **FashionStyleApp** này và gõ:
+```bash
 npm start
-
-# OR using Yarn
-yarn start
 ```
+*Lệnh này sẽ biến Terminal thành trung tâm theo dõi mã lệnh, không được tắt cửa sổ này.*
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+### Bước 5: Đẩy ứng dụng vào Điện thoại
+Mở thêm một Terminal thứ 2 tại thư mục **FashionStyleApp** và gõ lệnh:
+```bash
 npm run android
-
-# OR using Yarn
-yarn android
 ```
+- Việc cài đặt mất tầm 15 - 30s. Bạn sẽ thấy ứng dụng tự mở lên trên điện thoại ảo.
+- Lần đầu tiên: Màn hình đen với cục tròn vàng xoay xoay sẽ diễn ra tầm 10-30s. Lý do đơn giản do Nodejs Web đùn hàng ngàn File Code siêu nhẹ vào khung WebView. Sang các lần mở kế tiếp nó đều lưu lại ở cache và thao tác sẽ nhanh như gió.
 
-### iOS
+---
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## 🛠 Cách Xử Lý Các Sự Cố (Troubleshooting)
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+1. **Lỗi "Invalid email or password" (khi nhập đúng 100%):**
+   - Sự cố này là do Cổng `8080` của Database không gắn kết được vào máy ảo. Trở lại **Bước 3** và gõ lại lệnh `adb reverse tcp:8080 tcp:8080`.
 
-```sh
-bundle install
-```
+2. **Gặp màn hình nhấp nháy Trắng rồi Văng:**
+   - Chắc chắn đường dẫn IP đã bị sai trong lúc thử nghiệm. Vào file `config.ts` đổi lại thành IP chuẩn của máy chủ Android ảo là `http://10.0.2.2:5174`.
 
-Then, and every time you update your native dependencies, run:
+3. **Chữ Vàng Hiện "No apps connected" ở trạm phát Metro:**
+   - Hoàn toàn bình thường! Ứng dụng điện thoại đã bị vô định tuyến sang kết nối cái Trạm Metro khác do bạn bật 2 Terminal Metro cùng 1 lúc. Chỉ việc tắt bỏ cửa sổ hiển thị dòng Vàng đó đi là được.
 
-```sh
-bundle exec pod install
-```
+4. **Cảnh Báo Đỏ ở Android Studio (Về phiên bản AGP):**
+   - React Native 0.84 dùng AGP `8.12.0`. Đừng tự ý hạ cấp, hệ thống tự tương thích, chỉ việc bấm nút "X" và bỏ qua lỗi đó.
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+> Viết bởi kỹ sư AntiGravity. Phiên bản hệ thống 1.0.0.

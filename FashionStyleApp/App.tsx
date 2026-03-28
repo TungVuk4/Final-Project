@@ -16,18 +16,21 @@ import {
   ActivityIndicator,
   BackHandler,
   Platform,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   View,
+  Text,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { WEB_URL } from './config';
 
 const App = (): React.JSX.Element => {
   const webViewRef = useRef<InstanceType<typeof WebView>>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Xử lý nút Back cứng trên Android:
   // Thay vì thoát ứng dụng, điều hướng trở lại trang trước trong WebView
@@ -62,13 +65,36 @@ const App = (): React.JSX.Element => {
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         mixedContentMode="compatibility"
-        onLoadStart={() => setIsLoading(true)}
-        onLoadEnd={() => setIsLoading(false)}
+        onLoadStart={() => { 
+          if (!hasInitialLoaded) setIsLoading(true); 
+          setErrorMessage(null); 
+        }}
+        onLoadEnd={() => {
+          setIsLoading(false);
+          setHasInitialLoaded(true);
+        }}
+        onError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          setErrorMessage(`WebView Lỗi:\nMã: ${nativeEvent.code}\nMô tả: ${nativeEvent.description}`);
+          setIsLoading(false);
+        }}
+        onHttpError={(syntheticEvent) => {
+          const { nativeEvent } = syntheticEvent;
+          setErrorMessage(`WebView Lỗi HTTP:\nMã Trạng Thái: ${nativeEvent.statusCode}\nURL: ${nativeEvent.url}`);
+          setIsLoading(false);
+        }}
         onNavigationStateChange={navState => setCanGoBack(navState.canGoBack)}
       />
 
-      {/* Loading Spinner trong khi trang Web đang tải */}
-      {isLoading && (
+      {/* Hiển thị lỗi thiết lập */}
+      {errorMessage && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      )}
+
+      {/* Loading Spinner trong khi trang Web đang tải (Chỉ hiện ở lần khởi động đầu tiên) */}
+      {isLoading && !hasInitialLoaded && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#C9A96E" />
         </View>
@@ -90,6 +116,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

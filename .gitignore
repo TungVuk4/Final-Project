@@ -1,0 +1,16 @@
+node_modules/
+.idea/
+.vscode/
+.gradle/
+build/
+android/app/build/
+android/.gradle/
+android/build/
+ios/Pods/
+ios/build/
+*.class
+*.log
+*.zip
+*.tar.gz
+*.apk
+hs_err_pid*
