@@ -11,7 +11,10 @@ Final Project/
 ├── Backend Project/        # Node.js + Express REST API Server
 ├── Page Web Chinh/         # React Web App (Khách hàng)
 ├── Page Admin Project/     # React Admin Dashboard (Quản trị)
-└── Mobile App/             # React Native Hybrid WebView App (iOS & Android)
+└── Mobile App/             # 🆕 React Native Hybrid WebView App (iOS & Android)
+    ├── App.tsx               # Component gốc: WebView + Loading + Back Button Android
+    ├── config.ts             # URL cấu hình trung tâm (Localhost / ngrok / Production)
+    └── README.md             # Hướng dẫn cài đặt đầy đủ + Tài liệu báo cáo
 ```
 
 ```
