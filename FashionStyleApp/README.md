@@ -1,11 +1,11 @@
 # FashionStyle Mobile App
 
-Chào mừng đến với dự án Mobile App của hệ thống thương mại điện tử FashionStyle! App này đóng vai trò là cầu nối mang giao diện siêu mượt mà của gian hàng Web lên nền tảng Mobile (Android & iOS).
+Chào mừng đến với dự án Mobile App của hệ thống thương mại điện tử FashionStyle! App này đóng vai trò là cầu nối mang giao diện xuất sắc từ hệ thống Web sang ứng dụng điện thoại (**Chuyên biệt trên nền tảng Android**).
 
 ## 📐 Kiến Trúc Thực Hiện (Architecture)
 
-Đây là một ứng dụng di động **Hybrid (Lai)** được phát triển trên nền tảng **React Native**.
-Thay vì lập trình lại toàn bộ giao diện từ số 0 bằng mã C++/Java thuần túy, ứng dụng này sử dụng kiến trúc **WebView Wrapper** vô cùng thông minh:
+Đây là một ứng dụng di động **Hybrid (Lai)** được phát triển trên công nghệ **React Native** (nhưng đã được giản lược tinh gọn hoàn toàn bộ mã iOS, chỉ tập trung xử lý cho Android).
+Thay vì lập trình lại toàn bộ giao diện từ số 0 bằng mã C++/Java thuần túy, ứng dụng này sử dụng kiến trúc **WebView Wrapper** vô cùng ưu việt:
 1. **Lớp vỏ Native (React Native):** Khởi tạo một bộ khung phần mềm của hệ điều hành, đảm nhận việc xin quyền hệ thống, theo dõi phần cứng, loại bỏ rào cản mạng (ClearText Traffic) và duy trì sự ổn định.
 2. **Lõi Giao Diện (WebView):** Bên trong lớp vỏ, ứng dụng nhúng trực tiếp giao diện linh hoạt từ dự án web Vite (`Page Web Chinh`). WebView sẽ đóng vai trò như một lõi trình duyệt tối tân không viền.
 3. **Kết Nối Dữ Liệu:** Toàn bộ dữ liệu sản phẩm, đăng nhập, giỏ hàng đều được truyền động bộ hóa song song giữa App, Web và Backend thông qua cổng hầm ảo (ADB Reverse Tunnel).

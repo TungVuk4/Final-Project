@@ -1,551 +1,465 @@
-# 📂 Cấu Trúc Dự Án — Fashion eCommerce (Final Project)
+# 📱 Kiến Trúc Đồ Án — FashionStyle eCommerce Platform
 
-> Dự án thương mại điện tử thời trang gồm **4 thành phần** chính hoạt động độc lập và kết nối với nhau qua REST API.
-
----
-
-## 🏗️ Kiến Trúc Tổng Quan
-
-```
-Final Project/
-├── Backend Project/        # Node.js + Express REST API Server
-├── Page Web Chinh/         # React Web App (Khách hàng)
-├── Page Admin Project/     # React Admin Dashboard (Quản trị)
-└── Mobile App/             # 🆕 React Native Hybrid WebView App (iOS & Android)
-    ├── App.tsx               # Component gốc: WebView + Loading + Back Button Android
-    ├── config.ts             # URL cấu hình trung tâm (Localhost / ngrok / Production)
-    └── README.md             # Hướng dẫn cài đặt đầy đủ + Tài liệu báo cáo
-```
-
-```
-┌──────────────────────┐   ┌───────────────────────────┐
-│   Page Web Chinh     │   │       Mobile App           │
-│ React + Redux + TS   │   │ React Native + WebView     │
-│  (Trình duyệt Web)   │   │  wraps Page Web Chinh      │
-└──────────┬───────────┘   └────────────┬──────────────┘
-           │ HTTP (Axios)               │ HTTP (Axios)
-           └─────────────┬─────────────┘
-                         ▼
-          ┌──────────────────────────────┐
-          │       Backend Project        │  Port: 8080
-          │  Node.js · Express · MySQL   │
-          │  MSSQL · Nodemailer · JWT    │
-          └──────────────┬───────────────┘
-                         │ HTTP (Axios)
-                         ▼
-          ┌──────────────────────────────┐
-          │     Page Admin Project       │
-          │ React + Zustand + PrimeReact │
-          └──────────────────────────────┘
-```
+> **Tên đồ án:** FashionStyle — Hệ thống thương mại điện tử thời trang đa nền tảng
+> **Công nghệ:** Node.js · React · React Native · MySQL · Android
+> **Số lượng thành phần:** 4 module hoạt động độc lập và đồng bộ với nhau
 
 ---
 
-## 1️⃣ Backend Project — REST API Server
+## 1. Tổng Quan Kiến Trúc Hệ Thống
 
-> **Công nghệ:** Node.js · Express · MySQL2 · MSSQL · JWT · Multer · Nodemailer
+Tôi xây dựng hệ thống FashionStyle theo kiến trúc **Multi-Tier (Đa tầng)** với 4 thành phần chính, mỗi thành phần đóng một vai trò riêng biệt và giao tiếp với nhau thông qua **RESTful API** trên cổng `8080`.
 
-### Cấu trúc
+### Sơ đồ tổng thể
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    TẦNG TRÌNH BÀY (Presentation)            │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────┐  │
+│  │  Page Web Chinh  │  │ Page Admin Proj. │  │ Fashion  │  │
+│  │  (React + Vite)  │  │ (React + Vite)   │  │ StyleApp │  │
+│  │  Port: 5174      │  │  Port: 5173      │  │ Android  │  │
+│  │  Khách hàng      │  │  3 Admin roles   │  │ WebView  │  │
+│  └────────┬─────────┘  └────────┬─────────┘  └────┬─────┘  │
+│           │ Axios HTTP          │ Axios HTTP        │ ADB    │
+└───────────┼─────────────────────┼───────────────────┼───────┘
+            │                     │                   │
+            └──────────┬──────────┘                   │
+                       │          HTTP REST API        │
+┌──────────────────────▼──────────────────────────────▼──────┐
+│                TẦNG XỬ LÝ (Application Layer)               │
+│                                                             │
+│           Backend Project — Node.js + Express               │
+│                      Port: 8080                             │
+│   13 Route Groups · JWT Auth · Multer · Nodemailer          │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ MySQL2 / TCP
+┌──────────────────────────────▼──────────────────────────────┐
+│                    TẦNG DỮ LIỆU (Data Layer)                 │
+│                                                             │
+│              MySQL Database (SQL Server)                    │
+│   Users · Products · Orders · Cart · Promotions · Reviews   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Chi Tiết Từng Thành Phần
+
+---
+
+### 🔵 2.1. Backend Project — REST API Server
+
+**Công nghệ:** Node.js · Express.js · MySQL2 · JWT · Bcrypt · Multer · Nodemailer · Node-Schedule
+
+**Vai trò:** Trung tâm điều phối toàn bộ dữ liệu và nghiệp vụ. Tất cả các thành phần (Web, Admin, App) đều giao tiếp duy nhất qua đây.
+
+#### Cấu trúc thư mục
 
 ```
 Backend Project/
-├── server.js               # Entry point — khởi tạo Express, đăng ký routes
-├── install.js              # Đăng ký server như Windows Service
-├── uninstall.js            # Gỡ Windows Service
-├── sync-images.js          # Đồng bộ hình ảnh sản phẩm
-├── seed-admin.js           # Script khởi tạo 3 tài khoản Admin mặc định
-├── db-update-promotions.js # Cập nhật cấu trúc DB cho chức năng Khuyến mãi
-├── setup_system_config.js  # 🆕 Script migration bảng system_config (chạy 1 lần)
-├── benchmark_v2.js         # 🆕 Script đo tốc độ 15 API endpoints (5 lần/endpoint)
-├── .env                    # Biến môi trường (DB, JWT secret, SMTP, v.v...)
-├── package.json
-├── _helpers/               # Tiện ích nội bộ
-│   ├── error-handler.js    # Global error handler middleware
-│   └── sqlserver.js        # Kết nối & query SQL Server
+├── server.js               # Entry point: khởi Express, đăng ký 13 route groups,
+│                           #   tự động tạo 3 Admin cố định khi server start
+├── .env                    # Biến môi trường (DB host, JWT secret, SMTP Gmail)
+├── _helpers/
+│   └── error-handler.js    # Global error handler middleware (xử lý lỗi tập trung)
 ├── dbpool/
-│   └── db.js               # Khởi tạo connection pool MySQL
+│   └── db.js               # MySQL connection pool (tái sử dụng kết nối, không tạo mới mỗi request)
 ├── middlewares/
-│   └── auth.js             # Middleware xác thực JWT (requireAuth, requireAdmin, requireAdminLevel1/2/3)
+│   └── auth.js             # JWT middleware: requireAuth · requireAdmin · Level 1/2/3
 ├── services/
-│   └── login.js            # Business logic xử lý đăng nhập, token
-├── routes/
-│   └── api/                # Định nghĩa API endpoints
-│       ├── auth-temp.js    # Đăng ký, Đăng nhập, OTP, quên mật khẩu (vô hạn cho Admin)
-│       ├── products.js     # CRUD sản phẩm, lọc Color/Cat/Price, POST /upload-image (Multer)
-│       ├── categories.js   # CRUD danh mục sản phẩm (4 Bộ sưu tập Collection)
-│       ├── colors.js       # 🆕 Quản lý bảng màu (BLACK, RED, BLUE, WHITE, ROSE, GREEN)
-│       ├── admin_logs.js   # 🆕 Nhật ký hoạt động của 3 Admin (CRUD Logs)
-│       ├── cart.js         # Giỏ hàng User đã đăng nhập + 🆕 Guest cart (GuestToken)
-│       ├── orders.js       # Đặt hàng, lịch sử, trạng thái — 🆕 Checkout & áp dụng mã Random VIP
-│       ├── promotions.js   # Quản lý mã giảm (Admin 2) + 🆕 Sinh mã Random 1 lần & gán VIP
-│       ├── stats.js        # Thống kê Dashboard — 🆕 đếm đúng PROCESSING trong pendingOrders
-│       ├── reviews.js      # 🆕 Quản lý đánh giá (Hỗ trợ Guest & User)
-│       ├── notifications.js# 🆕 API thông báo hệ thống (chuông báo Topbar)
-│       ├── system-config.js# 🆕 Cấu hình hệ thống (bảo trì, alerts, đóng đăng ký) — Admin 1 only
-│       └── user.js         # Hồ sơ người dùng, phân quyền CanDeleteProduct, IsActive
-├── uploads/                # Thư mục lưu ảnh sản phẩm được upload
-└── daemon/                 # Windows Service runner (WinSW)
-    ├── nodejs_api.exe
-    └── nodejs_api.xml
+│   └── login.js            # Business logic đăng nhập, sinh JWT token
+├── routes/api/
+│   ├── auth-temp.js        # Đăng ký · Đăng nhập · OTP · Quên mật khẩu
+│   ├── products.js         # CRUD sản phẩm · Upload ảnh (Multer) · Tồn kho theo Size+Color
+│   ├── categories.js       # 4 Bộ sưu tập: Luxury · Special · Summer · Unique
+│   ├── colors.js           # 6 màu cơ bản: BLACK · RED · BLUE · WHITE · ROSE · GREEN
+│   ├── cart.js             # Giỏ hàng User đã đăng nhập + Giỏ hàng Guest (GuestToken)
+│   ├── orders.js           # Đặt hàng (COD/Online) · Lịch sử · Duyệt đơn · Email nền
+│   ├── promotions.js       # Mã giảm giá · Sinh mã Random dùng 1 lần · Tặng VIP
+│   ├── stats.js            # Dashboard thống kê: doanh thu · tồn kho · biểu đồ
+│   ├── reviews.js          # Đánh giá sản phẩm (Guest + User)
+│   ├── admin_logs.js       # Nhật ký hành động của 3 Admin
+│   ├── notifications.js    # Thông báo: Hết hàng (OUT_OF_STOCK) · Đơn mới · Reviews
+│   ├── system-config.js    # Bật/tắt: Bảo trì · Đóng đăng ký · Cảnh báo hệ thống
+│   └── user.js             # Hồ sơ · Phân quyền CanDeleteProduct · Khóa tài khoản
+└── uploads/                # Thư mục lưu ảnh sản phẩm được upload bằng Multer
 ```
 
-### API Endpoints
+#### Danh sách 13 API Endpoint
 
-| Nhóm | Prefix | Mô tả | Bảo vệ |
-|---|---|---|---|
-| Auth | `/api/auth-temp` | Đăng ký, đăng nhập, OTP, quên mật khẩu | Public |
-| Sản phẩm | `/api/products` | CRUD, lọc, `POST /upload-image`, 🆕 Quản lý tồn kho chi tiết theo Size | Public / Admin |
-| Danh mục | `/api/categories` | 4 Bộ sưu tập chính (Luxury, Special, Summer, Unique) | Public / Admin |
-| Màu sắc | `/api/colors` | 🆕 6 màu cơ bản (BLACK, RED, BLUE...) | Public / Admin |
-| Giỏ hàng | `/api/cart` | User cart + 🆕 Guest cart (`/guest`, `/guest/add`, `/guest/remove`) | Customer Token / GuestToken |
-| Đơn hàng | `/api/orders` | Đặt hàng (COD/Online), lịch sử, duyệt đơn — 🆕 Email gửi nền | Customer/Admin Token |
-| Nhật ký | `/api/admin_logs` | 🆕 Ghi lại mọi hành động của Admin | Admin Level 1 |
-| Thông báo | `/api/notifications` | 🆕 Cảnh báo Hết hàng (OUT_OF_STOCK) & Admin Logs | Admin Token |
-| Đánh giá | `/api/reviews` | 🆕 Lấy danh sách & Gửi review (Guest/User) | Public |
-| Thống kê | `/api/stats` | Báo cáo doanh thu / tồn kho / dashboard overview+charts | Admin Token |
-| **Cấu hình** | `/api/system-config` | 🆕 Bảo trì, Telegram alerts, Đóng đăng ký — Admin 1 quản lý | Admin Level 1 / Public |
+| # | Prefix | Phạm vi | Chức năng chính |
+|---|--------|---------|-----------------|
+| 1 | `/api/auth-temp` | Public | Đăng ký, Đăng nhập, OTP, Quên mật khẩu |
+| 2 | `/api/products` | Public / Admin | CRUD sản phẩm, upload ảnh, quản lý tồn kho Size |
+| 3 | `/api/categories` | Public / Admin | 4 bộ sưu tập thời trang |
+| 4 | `/api/colors` | Public / Admin | 6 màu sắc chuẩn |
+| 5 | `/api/reviews` | Public | Xem và gửi đánh giá (cả Guest lẫn User) |
+| 6 | `/api/cart` | Customer/Guest | Giỏ hàng cá nhân và Guest cart |
+| 7 | `/api/orders` | Customer / Admin | Đặt hàng, lịch sử, trạng thái, áp dụng mã |
+| 8 | `/api/user` | Customer / Admin | Hồ sơ, đổi mật khẩu, phân quyền |
+| 9 | `/api/promotions` | Admin 2 | Quản lý mã giảm giá, sinh mã Random VIP |
+| 10 | `/api/stats` | Admin 1 | Báo cáo doanh thu, tồn kho, chart |
+| 11 | `/api/admin-logs` | Admin All | Nhật ký hoạt động Admin |
+| 12 | `/api/notifications` | Admin All | Thông báo tổng hợp (chuông báo Topbar) |
+| 13 | `/api/system-config` | Admin 1 | Bảo trì · Đóng đăng ký · Toggle hệ thống |
 
-### Thư viện chính
+#### Hệ thống phân quyền 3 Admin tự động khởi tạo
 
-| Thư viện | Mục đích |
-|---|---|
-| `express` | Web framework |
-| `mysql2` | Kết nối MySQL |
-| `mssql` | Kết nối SQL Server |
-| `jsonwebtoken` | Tạo & xác thực JWT |
-| `bcryptjs` | Mã hoá mật khẩu |
-| `multer` | Upload file ảnh |
-| `nodemailer` | Gửi email (OTP, xác nhận) |
-| `node-schedule` | Cron job tự động |
-| `cors` | Cho phép cross-origin requests |
-| `dotenv` | Quản lý biến môi trường |
+Khi server khởi động, hàm `initAdminAccounts()` trong `server.js` tự động tạo 3 tài khoản Admin cố định nếu chưa tồn tại trong database:
 
-### 🔐 Hệ Thống Phân Quyền 3 Admin Cố Định
+| Admin | Email | Mật khẩu | Chức vụ |
+|-------|-------|-----------|---------|
+| Admin Chính | `admin1@fashionstyle.com` | `Admin@123` | Toàn quyền hệ thống |
+| Admin Kho | `admin2@fashionstyle.com` | `Admin@456` | Quản lý sản phẩm & kho |
+| Admin Vận Hành | `admin3@fashionstyle.com` | `Admin@789` | Xử lý đơn hàng |
 
-> 3 tài khoản Admin được **tự động tạo trong DB mỗi khi server khởi động** (hàm `initAdminAccounts()` trong `server.js`). Nếu đã tồn tại thì bỏ qua — không tạo trùng.
+> **Token JWT:** Admin nhận token **không có thời hạn**. Khách hàng nhận token hết hạn sau **7 ngày**.
 
-#### Tài khoản Admin cố định
-
-| # | Tên | Email | Mật khẩu | Vai trò |
-|---|---|---|---|---|
-| 1 | Admin Chính | `admin1@fashionstyle.com` | `Admin@123` | Toàn quyền hệ thống |
-| 2 | Admin Kho | `admin2@fashionstyle.com` | `Admin@456` | Quản lý sản phẩm & kho |
-| 3 | Admin Vận Hành | `admin3@fashionstyle.com` | `Admin@789` | Xử lý đơn hàng |
-
-#### Phân quyền theo chức năng
-
-| Chức năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
-|---|:---:|:---:|:---:|
-| Dashboard & Thống kê | ✅ (Ẩn widget Đơn hàng) | ❌ | ❌ |
-| Quản lý người dùng | ✅ (Reset MK/Khóa TK) | ❌ | ❌ |
-| Thêm / Sửa sản phẩm | ✅ | ✅ | ❌ |
-| **Duyệt xóa sản phẩm** | ✅ | ❌ (Chỉ gửi yc) | ❌ |
-| Khuyến Mãi & Tặng Mã VIP | ✅ (Đã ẩn UI) | ✅ | ❌ |
-| Xem danh sách đơn hàng | ✅ (Đã ẩn UI) | ❌ | ✅ |
-| Lên đơn hàng cho khách | ✅ (Đã ẩn UI) | ❌ | ✅ |
-| **Duyệt đơn hàng** | ✅ (Thao tác tại Dashboard) | ❌ | ❌ |
-| Quản lý Nhật ký (Logs) | ✅ (Xem + Xóa) | ✅ (Chỉ xem) | ✅ (Chỉ xem) |
-| Phân quyền Admin khác | ✅ | ❌ | ❌ |
-| Cấu hình hệ thống | ✅ | ❌ | ❌ |
-
-#### Luồng xử lý đơn hàng (phối hợp 3 Admin)
+#### Luồng xử lý đơn hàng (3 Admin phối hợp)
 
 ```
-Khách đặt hàng (Web / App)
+Khách đặt hàng (Web hoặc App)
         ↓
-Backend lưu đơn → Nodemailer gửi email về Admin 3
-        ↓
-Admin 3 (Vận Hành) xem thông tin khách → Lên đơn hàng
-        ↓
-Admin 1 (Chính) nhận thông báo → Duyệt hoặc Từ chối
-        ↓
-Nếu Duyệt: Admin 3 cập nhật trạng thái → Giao hàng
-Nếu Từ chối: Hệ thống thông báo lý do về Admin 3
-        ↓
-Nodemailer gửi email xác nhận / thông báo về khách hàng
-```
-
-#### Middleware phân quyền Backend
-
-```javascript
-// middlewares/auth.js
-requireAuth    // Kiểm tra JWT hợp lệ (tất cả admin & customer)
-requireAdmin   // Chỉ cho phép Role = 'Admin' (cả 3 admin)
-
-// Kế hoạch mở rộng — phân biệt Admin theo Email/SubRole:
-requireAdminLevel1  // Chỉ admin1@fashionstyle.com
-requireAdminLevel2  // admin1 + admin2 (quản lý kho)
-requireAdminLevel3  // admin1 + admin3 (vận hành đơn hàng)
-```
-
-#### Token Admin — Không có thời hạn
-
-```javascript
-// auth-temp.js — login endpoint
-const token =
-  user.Role === 'Admin'
-    ? jwt.sign(payload, secret)              // Admin → vô hạn
-    : jwt.sign(payload, secret, { expiresIn: '7d' }); // Customer → 7 ngày
+Backend POST /api/orders → Lưu DB + Gửi 2 email đồng thời (Nodemailer)
+        │
+        ├── 📧 Email khách: "Đơn hàng #xxx đã đặt thành công"
+        └── 📧 Email Admin 3: "Có đơn hàng mới cần xử lý"
+                ↓
+        Admin 3 (Vận Hành) → Lên đơn hàng, xem thông tin
+                ↓
+        Admin 1 (Chính) → Duyệt hoặc Từ chối đơn
+                ↓
+        Nodemailer gửi email cập nhật trạng thái về khách hàng
 ```
 
 ---
 
-## 2️⃣ Page Web Chinh — Web App Khách Hàng
+### 🟢 2.2. Page Web Chinh — Giao Diện Khách Hàng
 
-> **Công nghệ:** React 18 · TypeScript · Vite · Redux Toolkit · React Router v6 · Tailwind CSS · Axios · i18next (Đa ngôn ngữ EN/VI)
+**Công nghệ:** React 18 · TypeScript · Vite · Redux Toolkit · React Router v6 · Tailwind CSS · Axios · i18next
 
-### Cấu trúc
+**Vai trò:** Giao diện mua sắm dành cho khách hàng cuối. Đây cũng là nền tảng giao diện được nhúng vào ứng dụng Android (FashionStyleApp) thông qua WebView.
+
+**Cổng:** `http://localhost:5174`
+
+#### Cấu trúc thư mục
 
 ```
 Page Web Chinh/
-├── index.html              # Entry point HTML
-├── vite.config.ts          # Cấu hình Vite
-├── tailwind.config.js      # Cấu hình Tailwind CSS
-├── tsconfig.json           # Cấu hình TypeScript
-├── package.json
+├── index.html              # Entry HTML với meta viewport (thiết kế Mobile-First)
+├── vite.config.ts          # Cấu hình Vite (port: 5174)
+├── tailwind.config.js
 └── src/
-    ├── main.tsx            # Entry point React (Provider + BrowserRouter)
-    ├── App.tsx             # 🆕 Root + SystemConfigGuard (hiển thị Maintenance page khi bật)
-    ├── store.ts            # Redux Store (kết hợp các slices)
-    ├── typings.d.ts        # Global TypeScript types
-    ├── index.css           # Global styles
-    ├── i18n.ts             # 🆕 Cấu hình đa ngôn ngữ (i18next)
-    ├── assets/             # Hình ảnh tĩnh (31 files)
+    ├── main.tsx            # Entry: Provider (Redux) + BrowserRouter + i18n
+    ├── App.tsx             # Root: SystemConfigGuard bọc ngoài (chặn khi bảo trì)
+    ├── store.ts            # Redux Store: auth + cart + shop
+    ├── i18n.ts             # Đa ngôn ngữ Tiếng Anh / Tiếng Việt (i18next)
     ├── axios/
-    │   └── custom.ts       # Axios instance (baseURL → Backend :8080)
-    ├── actions/
-    │   └── index.ts        # Redux async thunks (fetchProducts, login...)
+    │   └── custom.ts       # Axios instance: baseURL = http://localhost:8080/api
+    ├── actions/            # Redux async thunks (fetchProducts, login, addToCart...)
+    ├── features/           # Redux slices
+    │   ├── auth/           # Trạng thái đăng nhập, user info, JWT token
+    │   ├── cart/           # Giỏ hàng: thêm, xóa, số lượng, tổng tiền
+    │   └── shop/           # Bộ lọc, sắp xếp sản phẩm
     ├── hooks/
-    │   ├── index.ts        # Custom typed Redux hooks
-    │   └── useSystemConfig.ts  # 🆕 Fetch + cache (30s) system config từ public API
-    ├── data/
-    │   └── db.json         # Mock data cho JSON Server
-    ├── features/           # Redux state management
-    │   ├── auth/authSlice.tsx   # State đăng nhập / user
-    │   ├── cart/cartSlice.tsx   # State giỏ hàng
-    │   └── shop/shopSlice.tsx   # State trang shop (filter, sort)
-    ├── components/         # 22 Shared UI components
+    │   ├── index.ts               # Typed Redux hooks
+    │   └── useSystemConfig.ts     # Fetch cấu hình hệ thống (cache 30 giây)
+    ├── components/         # 22 UI Component tái sử dụng
     │   ├── Header.tsx · Footer.tsx · Banner.tsx
-    │   ├── ProductItem.tsx · ProductGrid.tsx · ProductGridWrapper.tsx
-    │   ├── SidebarMenu.tsx · Dropdown.tsx · Button.tsx
-    │   ├── CategoriesSection.tsx · CategoryItem.tsx
-    │   ├── HomeCollectionSection.tsx · HomeCollectionFilter.tsx
-    │   ├── ShopFilterAndSort.tsx · ShopPageContent.tsx · ShopBanner.tsx
-    │   ├── ShowingPagination.tsx · ShowingSearchPagination.tsx
-    │   ├── QuantityInput.tsx · ScrollToTop.tsx · SocialMediaFooter.tsx
-    │   └── StandardSelectInput.tsx
+    │   ├── ProductItem.tsx · ProductGrid.tsx
+    │   ├── SidebarMenu.tsx (responsive mobile menu)
+    │   └── ...
     ├── pages/              # 15 Trang chính
-    │   ├── Landing.tsx         # Trang chủ
-    │   ├── Shop.tsx            # Danh sách sản phẩm
-    │   ├── SingleProduct.tsx   # Chi tiết sản phẩm
-    │   ├── Cart.tsx            # Giỏ hàng
-    │   ├── Checkout.tsx        # Thanh toán
-    │   ├── OrderConfirmation.tsx
-    │   ├── OrderHistory.tsx · SingleOrderHistory.tsx
-    │   ├── Login.tsx
-    │   ├── Register.tsx        # 🆕 Block form khi close_registration = 1
-    │   ├── UserProfile.tsx
-    │   ├── Search.tsx
-    │   ├── MaintenancePage.tsx # 🆕 Trang bảo trì (hiển thị toàn trang khi maintenance_mode = 1)
-    │   └── HomeLayout.tsx      # Layout khung (Header + Footer)
-    └── utils/              # 10 Utility functions
-        ├── checkCheckoutFormData.ts
-        ├── checkLoginFormData.ts
-        ├── checkRegisterFormData.ts
-        ├── checkUserProfileFormData.ts
-        ├── formatCategoryName.ts
-        ├── formatImageUrl.ts    # 🆕 Xử lý Link ảnh Local Assets vs Server Uploads
-        ├── formatDate.ts
-        ├── withNumberInputWrapper.tsx
-        ├── withSelectInputWrapper.tsx
-        └── formatCurrency.ts
+    │   ├── Landing.tsx         # Trang chủ + Hero Banner + Bộ sưu tập nổi bật
+    │   ├── Shop.tsx            # Danh sách sản phẩm với bộ lọc/sắp xếp
+    │   ├── SingleProduct.tsx   # Chi tiết sản phẩm + Chọn Size/Color + Đánh giá
+    │   ├── Cart.tsx            # Giỏ hàng + Áp dụng mã giảm giá
+    │   ├── Checkout.tsx        # Thanh toán + Điền địa chỉ giao hàng
+    │   ├── OrderHistory.tsx    # Lịch sử đơn hàng của tài khoản
+    │   ├── Login.tsx · Register.tsx · UserProfile.tsx
+    │   ├── Search.tsx          # Tìm kiếm sản phẩm theo tên/từ khóa
+    │   └── MaintenancePage.tsx # Hiển thị khi Admin bật chế độ bảo trì
+    └── utils/              # 10 hàm tiện ích (format tiền tệ, ngày, URL ảnh...)
 ```
 
-### Luồng dữ liệu
+#### Luồng dữ liệu
 
 ```
-User → Component → dispatch(action/thunk)
-                        ↓
-              Redux Slice (features/)
-                        ↓
-              Axios (axios/custom.ts) → Backend API :8080
+User tương tác với Component
+        ↓
+dispatch(action) → Redux Thunk
+        ↓
+Axios (axios/custom.ts) → Backend API :8080
+        ↓
+Backend xử lý → Trả JSON
+        ↓
+Redux Slice cập nhật State → Re-render UI
 ```
 
-### Scripts
+#### Thiết kế đáp ứng Mobile (điều kiện sống còn)
 
-| Script | Mô tả |
-|---|---|
-| `npm run dev` | Chỉ chạy Vite dev server |
-| `npm run start` | Chạy đồng thời Vite + JSON Server |
-| `npm run build` | Build production |
+> Vì toàn bộ giao diện Mobile App là WebView nhúng trang này, nếu web bị vỡ trên điện thoại thì App cũng vỡ theo. Tôi đảm bảo:
 
-### 📱 Yêu Cầu Responsive Design (Bắt buộc cho Mobile WebView)
-
-> Vì Mobile App dùng `<WebView uri={url} />` trỏ thẳng vào website này, **toàn bộ giao diện hiển thị trên điện thoại chính là website này**. Nếu web bị vỡ khung trên di động, App cũng bị vỡ theo. **Responsive là điều kiện sống còn.**
-
-| Hạng mục | Trạng thái / Cách đảm bảo |
-|---|---|
-| **Tailwind CSS** | ✅ Utility-first CSS — các class `sm:`, `md:`, `lg:` đảm bảo co giãn theo breakpoint |
-| **Viewport meta tag** | ✅ `<meta name="viewport" content="width=device-width, initial-scale=1.0">` trong `index.html` |
-| **Flexbox / Grid layout** | ✅ Các component dùng `flex`, `grid` của Tailwind — tự điều chỉnh theo màn hình |
-| **SidebarMenu.tsx** | ✅ Menu mobile riêng — hiển thị khi màn hình nhỏ (responsive navigation) |
-| **Kiểm tra tương thích** | Dùng DevTools (F12 → Toggle Device Toolbar) với các kích thước: 375px (iPhone SE), 390px (iPhone 14), 412px (Android) |
+| Hạng mục | Cách thực hiện |
+|----------|---------------|
+| Meta viewport | `width=device-width, initial-scale=1.0` trong `index.html` |
+| Tailwind Responsive | Các prefix `sm:` `md:` `lg:` cho từng component |
+| Mobile Menu | `SidebarMenu.tsx` riêng biệt cho màn hình nhỏ |
+| Flexbox/Grid | Layout tự co giãn theo kích thước màn hình |
 
 ---
 
-## 3️⃣ Page Admin Project — Dashboard Quản Trị
+### 🟡 2.3. Page Admin Project — Dashboard Quản Trị
 
-> **Công nghệ:** React 19 · JavaScript (Vite) · Zustand · PrimeReact · Tailwind CSS v4 · React Router v7 · i18next · **Theme: strictly 100% Premium White (Light Mode)**
+**Công nghệ:** React 19 · JavaScript · Vite · Zustand · PrimeReact · Tailwind CSS v4 · React Router v7 · i18next
 
-### Cấu trúc
+**Vai trò:** Bảng điều khiển nội bộ dành cho 3 Admin. Mỗi Admin đăng nhập sẽ thấy giao diện cá nhân hóa theo vai trò của mình.
+
+**Cổng:** `http://localhost:5173`
+
+#### Cấu trúc thư mục
 
 ```
 Page Admin Project/
-├── index.html              # Entry point HTML
-├── vite.config.js          # Cấu hình Vite
-├── package.json
+├── index.html
+├── vite.config.js
 └── src/
-    ├── main.jsx            # Entry point React
+    ├── main.jsx            # Entry: BrowserRouter + i18n setup
     ├── App.jsx             # Root component
-    ├── App.css             # Global styles
-    ├── index.css           # CSS base
-    ├── i18n.js             # Cấu hình đa ngôn ngữ (i18next)
-    ├── tailwind.config.js  # Cấu hình Tailwind CSS v4
-    ├── assets/             # Tài nguyên tĩnh
+    ├── i18n.js             # Đa ngôn ngữ EN/VI cho giao diện Admin
     ├── router/
-    │   └── AppRouter.jsx   # Định nghĩa routes — ProtectedRoute redirect về /login
+    │   └── AppRouter.jsx   # ProtectedRoute: chặn truy cập nếu chưa đăng nhập
     ├── stores/
-    │   └── auth.jsx        # Zustand store — lưu token + user vào localStorage
+    │   └── auth.jsx        # Zustand store: lưu token + user vào localStorage
     ├── services/
-    │   └── ApiServices.js  # Axios instance → Backend API :8080
-    ├── layout/             # Các layout component
-    │   ├── AppLayout.jsx   # Layout chính (Sidebar + Topbar)
-    │   ├── AuthLayout.jsx  # Layout trang đăng nhập
-    │   ├── Sidebar.jsx     # Sidebar điều hướng
-    │   ├── Topbar.jsx      # Thanh trên cùng (user, breadcrumb)
-    │   ├── MobileDrawer.jsx
-    │   └── UserPopover.jsx # Popover thông tin user + nút Logout
-    └── pages/              # Các trang quản trị
-        ├── Dashboard.jsx       # Tổng quan + Nhật ký + 🆕 Toggle Cấu hình Hệ thống (Admin 1)
-        ├── Product.jsx         # Quản lý 4 Collection, 6 Colors, Upload ảnh & 🆕 Tồn kho theo Size
-        ├── Users.jsx           # Quản lý người dùng (IsActive, CanDeleteProduct, lịch sử đơn)
-        ├── Promotions.jsx      # 🆕 Quản lý khuyến mãi, Kho mã Random Code dùng 1 lần & Tặng quà VIP
-        ├── Orders.jsx          # 🆕 Fix đếm PROCESSING trong "Cần xử lý" — Admin 3 thấy đơn Admin 1 duyệt
-        ├── Roles.jsx           # Phân quyền + 🆕 3 Toggle Cấu hình Hệ thống (Admin 1 bật/tắt thực tế)
-        └── auth/               # Trang xác thực
-            └── Login.jsx       # Đăng nhập (Role Admin + Token vô hạn)
+    │   └── ApiServices.js  # Axios instance → Backend :8080
+    ├── layout/
+    │   ├── AppLayout.jsx   # Layout chính: Sidebar + Topbar
+    │   ├── Sidebar.jsx     # Menu điều hướng (ẩn/hiện theo quyền)
+    │   └── Topbar.jsx      # Chuông thông báo + Breadcrumb + User popover
+    └── pages/
+        ├── Dashboard.jsx       # Tổng quan thống kê + Toggle Cấu hình hệ thống (Admin 1)
+        ├── Product.jsx         # CRUD sản phẩm + Upload ảnh + Tồn kho chi tiết theo Size
+        ├── Users.jsx           # Quản lý khách hàng (Khóa, Phân quyền)
+        ├── Promotions.jsx      # Mã giảm giá + Random code + Tặng VIP
+        ├── Orders.jsx          # Danh sách đơn hàng + Cập nhật trạng thái (Admin 3)
+        ├── Roles.jsx           # Xem phân quyền + 3 Toggle cấu hình hệ thống (Admin 1)
+        └── auth/Login.jsx      # Đăng nhập Admin (chỉ Role = 'Admin' được vào)
 ```
 
-### 🔐 Phân Quyền Hiển Thị theo Tài Khoản
+#### Phân quyền hiển thị giao diện
 
-> Kế hoạch phân quyền giao diện: mỗi tài khoản Admin đăng nhập vào sẽ thấy các menu/chức năng phù hợp với vai trò.
-
-| Menu / Tính năng | Admin 1 (Chính) | Admin 2 (Kho) | Admin 3 (Vận Hành) |
-|---|:---:|:---:|:---:|
-| Bảng điều khiển (Dashboard) | ✅ (Cá nhân hóa) | ❌ | ❌ |
-| Người dùng | ✅ | ❌ | ❌ |
-| **Sản phẩm** (thêm/sửa + xem + upload ảnh) | ✅ | ✅ | ❌ |
-| **Khuyến Mãi** (Mã code, % Sale) | ✅ (Đã ẩn UI) | ✅ | ❌ |
-| **Đơn hàng** (xem + lên đơn) | ✅ (Đã ẩn UI) | ❌ | ✅ |
-| **Duyệt đơn hàng** | ✅ (Tại Dashboard) | ❌ | ❌ |
-| Vai trò (Roles — chỉ xem) | ✅ | ✅ | ✅ |
-
-### Luồng Đăng Nhập & Điều Hướng
-
-```
-Mở trình duyệt → http://localhost:5173
-        ↓
-ProtectedRoute kiểm tra isAuthenticated (Zustand localStorage)
-        ↓ Chưa đăng nhập
-/login  ←  Trang đăng nhập
-        ↓ Đăng nhập thành công (role phải là 'Admin')
-Zustand lưu token + user info → Navigate về /
-        ↓
-Dashboard hiện thị theo quyền của tài khoản
-```
-
-### Thư viện chính
-
-| Thư viện | Mục đích |
-|---|---|
-| `primereact` + `primeicons` | Bộ UI component cao cấp (DataTable, Dialog, Toast...) |
-| `zustand` | State management nhẹ (thay Redux) |
-| `react-router-dom` v7 | Client-side routing |
-| `i18next` + `react-i18next` | Đa ngôn ngữ |
-| `axios` | Gọi Backend API |
-| `dayjs` | Xử lý ngày tháng |
-| `tailwindcss` v4 | Styling |
+| Tính năng | Admin 1 | Admin 2 | Admin 3 |
+|-----------|:-------:|:-------:|:-------:|
+| Dashboard & Thống kê | ✅ | ❌ | ❌ |
+| Quản lý Người dùng | ✅ | ❌ | ❌ |
+| Sản phẩm (Thêm/Sửa/Xóa) | ✅ | ✅ | ❌ |
+| Khuyến Mãi & Mã Random | ✅ | ✅ | ❌ |
+| Đơn hàng (Xem + Lên đơn) | ✅ | ❌ | ✅ |
+| Duyệt đơn hàng cuối | ✅ | ❌ | ❌ |
+| Cấu hình hệ thống | ✅ | ❌ | ❌ |
+| Nhật ký Admin Logs | ✅ (Xem+Xóa) | ✅ (Chỉ xem) | ✅ (Chỉ xem) |
 
 ---
 
-## 4️⃣ Mobile App — Ứng Dụng Di Động
+### 🔴 2.4. FashionStyleApp — Ứng Dụng Android
 
-> **Công nghệ:** React Native · React Native WebView · JWT Authentication
+**Công nghệ:** React Native 0.84.1 · TypeScript · React Native WebView · react-native-safe-area-context · Hermes Engine · AGP 8.12.0 · Gradle 9.0
 
-### 5.1. Kiến Trúc Đồng Bộ và Tối Ưu Hóa (Back-end as a Service)
+**Vai trò:** Ứng dụng Android gốc (`.apk`) bọc toàn bộ giao diện web (`Page Web Chinh`) bên trong một WebView. Người dùng cài App lên điện thoại và trải nghiệm mua sắm y như trên web mà không cần mở trình duyệt.
 
-Hệ thống vận hành dựa trên mô hình **tập trung dữ liệu**, đảm bảo trải nghiệm người dùng liền mạch giữa môi trường Web và Mobile App:
-
-| Đặc điểm | Mô tả |
-|---|---|
-| **Cơ sở dữ liệu duy nhất** | Cả Website và Mobile App dùng chung **SQL Server** — đảm bảo nhất quán kho hàng & thông tin khách hàng |
-| **Kiến trúc Hybrid WebView** | Mobile App là một **Native Wrapper** dùng React Native để bọc (_wrap_) toàn bộ nền tảng Web chính |
-| **Cập nhật tức thì** | Mọi thay đổi về sản phẩm / khuyến mãi trên Web **phản ánh ngay** trên App, không cần cài đặt lại |
+#### Kiến trúc Hybrid WebView
 
 ```
-┌─────────────────────────────────────┐
-│           Mobile App                │
-│  ┌───────────────────────────────┐  │
-│  │   React Native (Native Shell) │  │  → Build ra .apk (Android)
-│  │  ┌─────────────────────────┐  │  │     và .ipa (iOS)
-│  │  │  React Native WebView   │  │  │
-│  │  │  ┌───────────────────┐  │  │  │
-│  │  │  │  Page Web Chinh   │  │  │  │  → Toàn bộ UI/UX
-│  │  │  │  (ReactJS + CSS)  │  │  │  │     responsive
-│  │  │  └───────────────────┘  │  │  │
-│  │  └─────────────────────────┘  │  │
-│  └───────────────────────────────┘  │
-└─────────────────────────────────────┘
-              │ WebView trỏ URI → Web đã deploy
-              ▼
-       Backend Project :8080
+┌─────────────────────────────────────────────┐
+│              FashionStyleApp (.apk)          │
+│                                             │
+│  ┌─────────────────────────────────────┐    │
+│  │    React Native Native Shell        │    │
+│  │  (Kotlin/Java via Hermes Engine)    │    │
+│  │                                     │    │
+│  │  ┌───────────────────────────────┐  │    │
+│  │  │    React Native WebView       │  │    │
+│  │  │                               │  │    │
+│  │  │  ┌─────────────────────────┐  │  │    │
+│  │  │  │   Page Web Chinh        │  │  │    │
+│  │  │  │  (React + Tailwind CSS) │  │  │    │
+│  │  │  │  http://10.0.2.2:5174   │  │  │    │
+│  │  │  └─────────────────────────┘  │  │    │
+│  │  └───────────────────────────────┘  │    │
+│  └─────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+             │ ADB Reverse Tunnel
+             ▼
+   Backend Project :8080 (máy Windows)
 ```
 
-### 5.2. Công Nghệ Triển Khai
+#### Cấu trúc thư mục
 
-| Công nghệ | Mục đích |
-|---|---|
-| **React Native Core** | Khung nền tảng — xây dựng app cài được trực tiếp trên iOS & Android (`.apk` / `.ipa`) |
-| **React Native WebView** | Thành phần lõi — nhúng trực tiếp Website vào app với hiệu suất cao, giao diện mượt mà |
-| **JWT (JSON Web Token)** | Duy trì phiên đăng nhập của người dùng giữa Web và App thông qua **Storage của thiết bị** |
-
-### 5.3. Hướng Dẫn Triển Khai Thực Tế (React Native WebView)
-
-> 💡 **Tại sao cách này "khôn ngoan"?**
-> Bạn vẫn tạo ra một **React Native project thực thụ** — có đầy đủ code, có folder `android/`, `ios/`, `package.json`... Cô giáo kiểm tra sẽ thấy có dùng React Native. Còn giao diện thì **đẹp lung linh** vì chính là web bạn đã làm. Đây cũng là cách nhiều ứng dụng lớn dùng (Amazon, Shopee dùng WebView cho một số phần).
-
-**Bước 1: Khởi tạo Project React Native**
-```bash
-npx react-native init AppBanHang
-cd AppBanHang
+```
+FashionStyleApp/
+├── App.tsx                 # Component gốc: WebView + Back Button + Loading Spinner + Error Handler
+├── config.ts               # URL trung tâm: WEB_URL = http://10.0.2.2:5174
+├── package.json            # Chỉ dùng cho Android (đã xóa iOS dependency)
+├── tsconfig.json
+├── android/
+│   ├── build.gradle        # Cấu hình Gradle toàn project (AGP 8.12.0)
+│   ├── gradle.properties   # Hermes enabled · AndroidX · VFS Watch disabled
+│   ├── settings.gradle     # Include React Native gradle plugin
+│   ├── gradle/wrapper/
+│   │   └── gradle-wrapper.properties  # Gradle 9.0.0
+│   └── app/
+│       ├── build.gradle    # Cấu hình module app (compileSdk, minSdk, targetSdk)
+│       └── src/main/
+│           ├── AndroidManifest.xml    # Quyền INTERNET · usesCleartextTraffic=true
+│           ├── java/com/fashionstyleapp/
+│           │   ├── MainActivity.kt    # Activity gốc: kế thừa ReactActivity
+│           │   └── MainApplication.kt # Khởi động Hermes Engine + RN packages
+│           └── res/                   # Icons, theme, strings
 ```
 
-**Bước 2: Cài đặt thư viện WebView**
-```bash
-npm install react-native-webview
+#### Các tính năng đặc biệt đã triển khai trong App.tsx
+
+| Tính năng | Cách thực hiện |
+|-----------|---------------|
+| **Nút Back Android** | `BackHandler.addEventListener` → gọi `webViewRef.goBack()` thay vì thoát App |
+| **Loading ban đầu** | Spinner vàng chỉ hiển thị ở **lần tải đầu tiên** (state `hasInitialLoaded`) |
+| **Hiển thị lỗi rõ ràng** | `onError` + `onHttpError` → hiển thị mã lỗi trên màn hình đen thay vì trắng tinh |
+| **JWT đồng bộ** | `domStorageEnabled=true` → WebView dùng được `localStorage` để lưu token |
+| **HTTP nội bộ** | `android:usesCleartextTraffic="true"` → kết nối `http://` với Vite dev server |
+
+#### Cơ chế kết nối (ADB Reverse Tunnel)
+
+```
+Android Emulator              Windows (máy phát triển)
+─────────────────             ──────────────────────────
+localhost:8081     ←────────── tcp:8081  (Metro Bundler)
+localhost:8080     ←────────── tcp:8080  (Backend API)
+localhost:5174     ←────────── tcp:5174  (Vite Web Server)
 ```
 
-**Bước 3: Viết Code (chỉ ~20 dòng) — Mở `App.js` / `App.tsx`, xóa hết và dán vào:**
-```jsx
-import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import { WebView } from 'react-native-webview';
-
-const App = () => {
-  return (
-    <SafeAreaView style={styles.container}>
-      <WebView 
-        source={{ uri: 'https://link-web-ban-hang-cua-ban.com' }} 
-        style={{ flex: 1 }}
-      />
-    </SafeAreaView>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
-export default App;
-```
-
-**Bước 4: Chạy demo**
-```bash
-# Demo trên Android (cần Android Studio + Emulator)
-npx react-native run-android
-
-# Demo trên iOS (chỉ trên macOS, cần Xcode)
-npx react-native run-ios
-```
-
-> ✅ **Kết quả:** App đầy đủ cấu trúc React Native, có thể demo trực tiếp, giao diện chính là Web đã làm — không cần viết lại UI.
-
-### 5.4. Các Chức Năng Trọng Tâm trên Mobile
-
-> Ứng dụng tối ưu hóa trải nghiệm **vuốt / chạm** dựa trên nền tảng Responsive của ReactJS.
-
-| Nhóm chức năng | Chi tiết |
-|---|---|
-| 🛒 **Mua sắm đồng bộ** | Bắt đầu chọn hàng trên Website → thanh toán ngay trên Mobile nhờ đồng bộ giỏ hàng qua RESTful API |
-| 👤 **Quản lý cá nhân hóa** | Xem lịch sử đơn hàng, cập nhật thông tin cá nhân, quản lý ví voucher trên thiết bị di động |
-| 🔔 **Tính năng bổ trợ** | Tìm kiếm nhanh bằng điện thoại và nhận email thông báo trạng thái đơn hàng tức thì |
+Nhờ cơ chế ADB Reverse, điện thoại ảo "nghĩ" rằng cả 3 server (Metro, Backend, Web) đang chạy ngay trên chính nó, trong khi thực tế chúng đang chạy trên máy Windows.
 
 ---
 
-## 🔗 Kết Nối Giữa Các Thành Phần
+## 3. Luồng Dữ Liệu Toàn Hệ Thống
 
-| Từ | Đến | Phương thức | Ghi chú |
-|---|---|---|---|
-| Page Web Chinh | Backend Project | HTTP (Axios) | Port 8080 |
-| Page Admin Project | Backend Project | HTTP (Axios) | Port 8080 |
-| Mobile App | Page Web Chinh | `<WebView source={{ uri: url }} />` | React Native bọc toàn bộ Web — không viết UI riêng |
-| Backend Project | MySQL / MSSQL | TCP | Database chính (dùng chung Web & Mobile) |
-| Backend Project | Nodemailer / SMTP | SMTP | Gửi email xác nhận đơn hàng cho khách + thông báo về Admin |
-
-### 📦 Luồng Đặt Hàng — Web và App hoạt động giống hệt nhau
-
-> **Vì Mobile App chỉ là WebView bọc web**, khi khách đặt hàng trên App thực chất là đang dùng giao diện Web bên trong. Cả hai đều gọi **cùng một Backend API** — không có sự khác biệt kỹ thuật nào.
+### Khách hàng đặt hàng (Web hoặc App — hoạt động giống hệt)
 
 ```
-Khách đặt hàng (Web hoặc App — giống nhau)
+1. Khách chọn sản phẩm → Thêm vào giỏ hàng
+        ↓ POST /api/cart/add (kèm JWT token hoặc GuestToken)
+2. Backend lưu CartItems vào DB
         ↓
-Backend nhận request POST /api/orders
+3. Khách vào Checkout → Nhập địa chỉ + Áp mã giảm giá (nếu có)
+        ↓ POST /api/orders (kèm PromoCode nếu có)
+4. Backend:
+   ├── Tạo Order trong DB
+   ├── Đánh dấu mã đã dùng (IsUsed = 1)
+   ├── Gửi email khách hàng (Nodemailer bất đồng bộ)
+   └── Gửi email Admin 3
         ↓
-        ├─→ Lưu đơn hàng vào Database (MySQL / MSSQL)
-        │
-        └─→ Nodemailer gửi 2 email đồng thời:
-              ├─ 📧 Email khách hàng: "Đơn #12345 đã được đặt thành công!"
-              └─ 📧 Email Admin:      "⚠️ Có đơn hàng mới cần duyệt!"
-                                              ↓
-                                   Admin vào Page Admin Project
-                                   xem danh sách đơn → duyệt / từ chối
-                                              ↓
-                              Nodemailer gửi email cập nhật cho khách:
-                              "✅ Đơn hàng đã được xác nhận / đang giao"
+5. Admin 3 lên đơn → Admin 1 duyệt → Email xác nhận gửi lại khách
 ```
 
-### ✅ Tại sao không cần Firebase cho dự án này?
+### Luồng mã giảm giá VIP cá nhân hóa
 
-| Tiêu chí | Firebase FCM | Email (Nodemailer) — Lựa chọn của dự án |
-|---|---|---|
-| **Độ phức tạp** | Cao — cần đăng ký FCM, lưu device token cho từng user | Thấp — đã tích hợp sẵn trong Backend |
-| **Phù hợp** | App native có tính năng riêng | App WebView đơn giản — email là đủ |
-| **Admin nhận thông báo** | Cần app riêng để nhận push | Email về hộp thư — dễ quản lý hơn |
-| **Khách hàng nhận thông báo** | Pop-up điện thoại | Email xác nhận — chuyên nghiệp hơn |
-| **Trạng thái dự án** | Cần thêm nhiều code | ✅ Nodemailer đã có sẵn, dùng luôn |
-
-> 💡 **Kết luận:** Với kiến trúc WebView, **email qua Nodemailer** là giải pháp tối ưu — đơn giản, đã tích hợp sẵn, phù hợp với quy mô dự án và không cần cấu hình thêm bất kỳ dịch vụ bên ngoài nào.
+```
+Admin 2 tạo Promotion (% hoặc số tiền)
+        ↓
+Admin 2 sinh mã Random Code (dùng 1 lần, không ánh sáng)
+        ↓
+Admin 1 gán mã vào tài khoản khách VIP (bảng UserVouchers)
+        ↓
+Khách VIP đăng nhập → Xem ví voucher cá nhân của mình
+        ↓
+Khách áp mã khi Checkout → Backend kiểm tra:
+   ├── Mã tồn tại và chưa dùng (IsUsed = 0)?
+   ├── Mã được gán cho đúng User ID này?
+   └── Nếu hợp lệ → Giảm giá + Đánh dấu IsUsed = 1
+```
 
 ---
 
-## 📋 Hướng Dẫn Chạy Dự Án
+## 4. Cách Chạy Toàn Bộ Dự Án
 
+Thực hiện theo đúng thứ tự từng bước này:
+
+### Bước 1: Khởi động Backend
 ```bash
-# 1. Khởi động Backend (Port 8080)
 cd "Backend Project"
 npm run dev
+# Server lắng nghe tại http://0.0.0.0:8080
+# Tự động tạo 3 Admin + bảng UserVouchers nếu chưa có
+```
 
-# 2. Khởi động Web App Khách Hàng
+### Bước 2: Khởi động Web Khách Hàng
+```bash
 cd "Page Web Chinh"
-npm run start        # Vite (Port 5173) + JSON Server (Port 3000)
+npm run dev
+# Chạy tại http://localhost:5174
+```
 
-# 3. Khởi động Admin Dashboard
+### Bước 3: Khởi động Admin Dashboard
+```bash
 cd "Page Admin Project"
 npm run dev
+# Chạy tại http://localhost:5173
+```
+
+### Bước 4: Khởi động Ứng Dụng Android
+
+**4a. Bật máy ảo Android** (Android Studio → Device Manager → Play)
+
+**4b. Đào hầm ADB Reverse** (mở PowerShell mới):
+```bash
+adb reverse tcp:8081 tcp:8081   # Metro Bundler
+adb reverse tcp:8080 tcp:8080   # Backend API
+adb reverse tcp:5174 tcp:5174   # Vite Web Server
+```
+
+**4c. Khởi Metro Bundler:**
+```bash
+cd "FashionStyleApp"
+npm start
+```
+
+**4d. Build và cài APK vào máy ảo** (mở Terminal mới):
+```bash
+cd "FashionStyleApp"
+npm run android
 ```
 
 ---
 
-*📅 Tài liệu được cập nhật ngày: 27/03/2026 — Hoàn thiện hệ thống Tồn kho chi tiết theo Size, Tích hợp 100% Đa ngôn ngữ (Bilingual EN/VI) cho Admin & Web, và Tối ưu logic Voucher VIP cá nhân hóa dùng 1 lần.*
+## 5. Bảng Tóm Tắt Công Nghệ
+
+| Thành phần | Ngôn ngữ | Framework | Cổng | Giao tiếp |
+|------------|----------|-----------|------|-----------|
+| Backend | JavaScript | Node.js + Express | 8080 | REST API (JSON) |
+| Page Web Chinh | TypeScript | React 18 + Vite | 5174 | Axios → Backend |
+| Page Admin | JavaScript | React 19 + Vite | 5173 | Axios → Backend |
+| FashionStyleApp | TypeScript | React Native 0.84 | — | WebView + ADB Reverse |
+| Database | SQL | MySQL | 3306 | mysql2 pool |
+
+---
+
+## 6. Điểm Nổi Bật Kỹ Thuật
+
+| # | Điểm nổi bật | Mô tả |
+|---|--------------|-------|
+| 1 | **Kiến trúc Hybrid WebView** | Mobile App sử dụng 100% giao diện Web, không cần viết lại UI — cập nhật tức thì không cần release App mới |
+| 2 | **Phân quyền 3 Admin tự động** | `initAdminAccounts()` chạy mỗi lần server start, đảm bảo không bao giờ mất tài khoản Admin |
+| 3 | **Mã VIP 1 lần cá nhân hóa** | Hệ thống gán mã riêng cho từng khách VIP, xác thực theo UserID — không thể chia sẻ hay dùng chung |
+| 4 | **Email bất đồng bộ** | Nodemailer gửi email ngầm (non-blocking) — API trả response ngay, không chờ email gửi xong |
+| 5 | **ADB Reverse Tunnel** | Giải pháp chuẩn mực nhất để app trên Emulator kết nối vào máy phát triển, không bị Firewall chặn |
+| 6 | **Đa ngôn ngữ EN/VI** | Cả Web và Admin đều hỗ trợ Tiếng Anh và Tiếng Việt với i18next |
+| 7 | **Guest Cart** | Khách chưa đăng nhập vẫn mua được hàng bằng GuestToken — trải nghiệm mượt mà như sàn thương mại thật |
+| 8 | **Cấu hình hệ thống thời gian thực** | Admin 1 có thể bật/tắt bảo trì, đóng đăng ký ngay lập tức mà không cần deploy lại |
+
+---
+
+*📅 Tài liệu được tổng hợp và cập nhật ngày: 28/03/2026*
+*✍️ Tác giả: Sinh viên — Đồ án môn Lập trình Ứng dụng Web & Mobile*
