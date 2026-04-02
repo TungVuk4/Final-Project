@@ -25,6 +25,117 @@ router.get("/", async (req, res) => {
 });
 
 // ----------------------------------------------------------------
+// [PUBLIC / AUTH] Kiểm tra tính hợp lệ của mã khuyến mãi
+// POST /api/promotions/validate-promo
+// Body: { code }
+// Header: Authorization Bearer <token> (tuỳ chọn — nếu có sẽ check thêm VIP voucher)
+// ----------------------------------------------------------------
+router.post("/validate-promo", async (req, res) => {
+  const { code } = req.body;
+  if (!code || !code.trim()) {
+    return res.status(400).json({ valid: false, message: "Vui lòng nhập mã khuyến mãi." });
+  }
+  const codeUpper = code.trim().toUpperCase();
+
+  // Lấy UserID từ token nếu có (không bắt buộc)
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    try {
+      const jwt = require("jsonwebtoken");
+      const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+      userId = decoded.userId || decoded.UserID || null;
+    } catch (e) { /* Token không hợp lệ — bỏ qua, coi như guest */ }
+  }
+
+  try {
+    // ── Bước 1: Kiểm tra mã random dùng 1 lần (promotions_code) ──────────
+    const [singleUseRows] = await pool.query(
+      `SELECT pc.CodeID, pc.CodeValue, pc.PromotionID, pc.IsUsed, pc.AssignedToUserID,
+              p.DiscountPercent, p.StartDate, p.EndDate, p.IsActive
+       FROM promotions_code pc
+       JOIN Promotions p ON pc.PromotionID = p.PromotionID
+       WHERE pc.CodeValue = ?
+         AND p.IsActive = 1
+         AND p.StartDate <= CURDATE()
+         AND p.EndDate >= CURDATE()`,
+      [codeUpper]
+    );
+
+    if (singleUseRows.length > 0) {
+      const row = singleUseRows[0];
+      if (row.IsUsed) {
+        return res.json({ valid: false, message: "Mã này đã được sử dụng mà không còn hiệu lực." });
+      }
+      // Kiểm tra xem mã có bị gán riêng cho user khác không
+      if (row.AssignedToUserID && row.AssignedToUserID !== userId) {
+        return res.json({ valid: false, message: "Mã này không thuộc về tài khoản của bạn." });
+      }
+      return res.json({
+        valid: true,
+        code: row.CodeValue,
+        discountPercent: row.DiscountPercent,
+        type: "single-use",
+      });
+    }
+
+    // ── Bước 2: Nếu có token → kiểm tra VIP Voucher được gán (UserVouchers) ──
+    if (userId) {
+      const [vipRows] = await pool.query(
+        `SELECT uv.VoucherID, uv.IsUsed, uv.SpecificCode,
+                p.Code, p.DiscountPercent
+         FROM UserVouchers uv
+         JOIN Promotions p ON uv.PromotionID = p.PromotionID
+         WHERE uv.UserID = ?
+           AND (p.Code = ? OR uv.SpecificCode = ?)
+           AND p.IsActive = 1
+           AND p.EndDate >= CURDATE()`,
+        [userId, codeUpper, codeUpper]
+      );
+      if (vipRows.length > 0) {
+        const vip = vipRows[0];
+        if (vip.IsUsed) {
+          return res.json({ valid: false, message: "Voucher VIP này đã được sử dụng." });
+        }
+        return res.json({
+          valid: true,
+          code: vip.SpecificCode || vip.Code,
+          discountPercent: vip.DiscountPercent,
+          type: "vip",
+        });
+      }
+    }
+
+    // ── Bước 3: Kiểm tra mã chung (Promotions) ──────────────────────────
+    const [generalRows] = await pool.query(
+      `SELECT PromotionID, Code, DiscountPercent
+       FROM Promotions
+       WHERE Code = ?
+         AND IsActive = 1
+         AND StartDate <= CURDATE()
+         AND EndDate >= CURDATE()`,
+      [codeUpper]
+    );
+
+    if (generalRows.length > 0) {
+      return res.json({
+        valid: true,
+        code: generalRows[0].Code,
+        discountPercent: generalRows[0].DiscountPercent,
+        type: "general",
+      });
+    }
+
+    // ── Không tìm thấy ──────────────────────────────────────────────────
+    return res.json({ valid: false, message: "Mã khuyến mãi không tồn tại, đã hết hạn hoặc không hợp lệ." });
+
+  } catch (error) {
+    console.error("Lỗi validate promo:", error);
+    res.status(500).json({ valid: false, message: "Lỗi hệ thống khi kiểm tra mã." });
+  }
+});
+
+// ----------------------------------------------------------------
 // [ADMIN] Lấy tất cả khuyến mãi (bao gồm đã hết hạn/vô hiệu hóa)
 // GET /api/promotions/admin
 // ----------------------------------------------------------------
@@ -229,9 +340,28 @@ router.get("/my-vouchers", requireAuth, async (req, res) => {
         p.EndDate
       FROM UserVouchers uv
       JOIN Promotions p ON uv.PromotionID = p.PromotionID
-      WHERE uv.UserID = ? AND p.IsActive = 1 AND p.EndDate >= NOW() AND uv.IsUsed = 0
-      ORDER BY uv.AssignedAt DESC
+      WHERE uv.UserID = ? AND p.IsActive = 1 AND p.EndDate >= NOW()
+      ORDER BY uv.IsUsed ASC, uv.AssignedAt DESC
     `, [userId]);
+
+    // Auto-sync: Nếu promotions_code.IsUsed = 1 nhưng UserVouchers.IsUsed = 0, tự đồng bộ
+    for (const row of rows) {
+      if (!row.IsUsed && row.SpecificCode) {
+        const [codeCheck] = await pool.query(
+          "SELECT IsUsed FROM promotions_code WHERE CodeValue = ? AND IsUsed = 1",
+          [row.SpecificCode]
+        );
+        if (codeCheck.length > 0) {
+          // Đồng bộ lại UserVouchers
+          await pool.query(
+            "UPDATE UserVouchers SET IsUsed = 1 WHERE VoucherID = ?",
+            [row.VoucherID]
+          );
+          row.IsUsed = 1;
+          console.log(`[SYNC] Auto-sync UserVouchers VoucherID=${row.VoucherID} → IsUsed=1`);
+        }
+      }
+    }
 
     const mappedRows = rows.map(r => ({
       ...r,
@@ -253,10 +383,12 @@ router.get("/:id/codes", requireAuth, requireAdminLevel2, async (req, res) => {
   const promotionId = req.params.id;
   try {
     const [codes] = await pool.query(
-      `SELECT CodeID, CodeValue, IsUsed, CreatedAt 
-       FROM promotions_code 
-       WHERE PromotionID = ? 
-       ORDER BY CreatedAt DESC`,
+      `SELECT pc.CodeID, pc.CodeValue, pc.IsUsed, pc.CreatedAt, pc.AssignedToUserID,
+              u.FullName AS AssignedToUserName
+       FROM promotions_code pc
+       LEFT JOIN Users u ON pc.AssignedToUserID = u.UserID
+       WHERE pc.PromotionID = ? 
+       ORDER BY pc.AssignedToUserID DESC, pc.CreatedAt DESC`,
       [promotionId]
     );
     res.status(200).json({ success: true, data: codes });

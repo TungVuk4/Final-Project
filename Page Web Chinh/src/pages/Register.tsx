@@ -48,6 +48,21 @@ const Register = () => {
       toast.error(t("auth.fill_required", "Vui lòng điền đầy đủ thông tin bắt buộc"));
       return;
     }
+    // Validate tên: ít nhất 2 ký tự, không chứa số hoặc ký tự đặc biệt
+    if (fullName.trim().length < 2) {
+      toast.error("Họ và tên phải có ít nhất 2 ký tự");
+      return;
+    }
+    if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(fullName.trim())) {
+      toast.error("Họ và tên chỉ được chứa chữ cái và khoảng trắng (không có số hoặc ký tự đặc biệt)");
+      return;
+    }
+    // Validate email: phải đúng định dạng
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast.error("Email không đúng định dạng (ví dụ: name@example.com)");
+      return;
+    }
     if (password !== confirmPassword) {
       toast.error(t("auth.pass_not_match", "Mật khẩu xác nhận không khớp"));
       return;

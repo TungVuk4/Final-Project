@@ -14,6 +14,7 @@ import {
   HiCheckCircle, HiXCircle, HiClock, HiTruck, HiArrowPath,
 } from "react-icons/hi2";
 import { useTranslation } from "react-i18next";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 // ── Types ──────────────────────────────────────────────────────────
 type OrderItem = {
@@ -41,7 +42,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   if (!token) throw new Response("Unauthorized", { status: 401 });
 
   try {
-    const response = await fetch(`http://localhost:8080/api/orders/my-orders/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/orders/my-orders/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) throw new Response("Not found", { status: response.status });
@@ -96,7 +97,7 @@ const SingleOrderHistory = () => {
     if (!token || !order?.OrderID) return;
     if (!silent) setRefreshing(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/orders/my-orders/${order.OrderID}`, {
+      const res = await fetch(`${API_BASE_URL}/orders/my-orders/${order.OrderID}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

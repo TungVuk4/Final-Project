@@ -247,9 +247,31 @@ function PaymentSuccessOverlay({ orderId, onDone }: { orderId?: number; onDone: 
 const Checkout = () => {
   const { t } = useTranslation();
   const { productsInCart, subtotal } = useAppSelector((state) => state.cart);
+  const { userInfo } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const token = getAuthToken();
+
+  // Decode JWT để lấy email đáng tin cậy nhất (JWT luôn có email trong payload)
+  const loggedInEmail = (() => {
+    // Ưu tiên 1: Decode từ JWT token (nguồn đáng tin nhất)
+    if (token) {
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload.email) return payload.email as string;
+        }
+      } catch {}
+    }
+    // Ưu tiên 2: Redux state
+    if (userInfo?.email) return userInfo.email;
+    // Ưu tiên 3: localStorage fallback
+    try {
+      const raw = localStorage.getItem("fashionUser");
+      return raw ? (JSON.parse(raw).email || "") : "";
+    } catch { return ""; }
+  })();
 
   const [selectedPayment, setSelectedPayment] = useState<string>("COD");
   // "card" | "qr" — user chọn hình thức ngân hàng TRC khi submit
@@ -266,6 +288,23 @@ const Checkout = () => {
   const [promoError, setPromoError] = useState("");
   const [validatingPromo, setValidatingPromo] = useState(false);
 
+  // Email state — pre-fill từ JWT, dùng lazy initializer để đọc đúng ngay khi mount
+  const [emailInput, setEmailInput] = useState<string>(() => {
+    if (token) {
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload.email) return payload.email as string;
+        }
+      } catch {}
+    }
+    try {
+      const raw = localStorage.getItem("fashionUser");
+      return raw ? (JSON.parse(raw).email || "") : "";
+    } catch { return ""; }
+  });
+
   // payload được lưu SAU KHI form validate thành công
   const pendingPayload = useRef<{ url: string; data: object } | null>(null);
   
@@ -281,43 +320,19 @@ const Checkout = () => {
     setPromoError("");
     setValidatingPromo(true);
     try {
-      // Vì checkout có thể dành cho guest hoặc user, 
-      // ta gọi API public (hoặc my-vouchers nếu có user)
-      // Tốt nhất là gọi API GET /promotions để check (hoặc tạo endpoint validate riêng)
-      // Tạm thời dùng customFetch.get('/promotions') để tự check ở client
       const cfg = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      
-      let allPromos: any[] = [];
-      
-      // Nếu có token, check xem user có được gán mã vip ko, VÀ mã public
-      if (token) {
-        // Cố gắng get VIP vouchers trước
-        try {
-          const myRes = await customFetch.get("/promotions/my-vouchers", cfg);
-          if (myRes.data?.success) allPromos = [...allPromos, ...myRes.data.data];
-        } catch(e) {}
-      }
-      
-      // Get public promos (cần chỉnh BE cho phép guest xem public promos, hoặc dựa vào BE hiện tại)
-      try {
-        const pubRes = await customFetch.get("/promotions", cfg);
-        if (pubRes.data?.success) {
-          allPromos = [...allPromos, ...pubRes.data.data];
-        }
-      } catch(e) {}
-      
-      const codeUpper = promoInput.trim().toUpperCase();
-      const match = allPromos.find(p => p.Code === codeUpper);
-      
-      if (match) {
-        setAppliedPromo({ code: match.Code, percent: match.DiscountPercent });
-        toast.success(`Áp dụng mã ${match.Code} thành công! (Giảm ${match.DiscountPercent}%)`);
+      const res = await customFetch.post("/promotions/validate-promo", { code: promoInput.trim() }, cfg);
+      const data = res.data;
+      if (data.valid) {
+        setAppliedPromo({ code: data.code, percent: data.discountPercent });
+        const typeLabel = data.type === "single-use" ? "🎟 Mã dùng 1 lần" : data.type === "vip" ? "👑 Voucher VIP" : "🏷 Mã chung";
+        toast.success(`${typeLabel} — Giảm ${data.discountPercent}% được áp dụng!`);
       } else {
-        setPromoError("Mã khuyến mãi không hợp lệ hoặc bạn không có quyền sử dụng mã này.");
+        setPromoError(data.message || "Mã khuyến mãi không hợp lệ.");
         setAppliedPromo(null);
       }
-    } catch(e) {
-      setPromoError("Lỗi hệ thống khi kiểm tra mã.");
+    } catch (e: any) {
+      setPromoError(e?.response?.data?.message || "Lỗi hệ thống khi kiểm tra mã.");
     } finally {
       setValidatingPromo(false);
     }
@@ -326,7 +341,6 @@ const Checkout = () => {
   const buildPayloads = (formData: FormData) => {
     const firstName = formData.get("firstName") as string;
     const lastName = formData.get("lastName") as string;
-    const emailAddress = formData.get("emailAddress") as string;
     const address = formData.get("address") as string;
     const apartment = formData.get("apartment") as string;
     const city = formData.get("city") as string;
@@ -336,15 +350,17 @@ const Checkout = () => {
     const fullAddress = `${address} ${apartment ? `(${apartment})` : ""}, ${city}, ${country} - Mã Zip: ${postalCode} - SĐT: ${phone} - Khách hàng: ${firstName} ${lastName}`;
 
     const cartItems = productsInCart.map((p) => ({
-      ProductID: parseInt(p.id),
+      ProductID: p.productId ?? parseInt(p.id),
       Quantity: p.quantity,
       Price: p.price,
     }));
 
     const promoCodeToSave = appliedPromo ? appliedPromo.code : null;
 
+    const emailForOrder = token ? loggedInEmail : (formData.get("emailAddress") as string);
+
     const authPayload = { ShippingAddress: fullAddress, PaymentMethod: selectedPayment, PromotionCode: promoCodeToSave, cartItems };
-    const guestPayload = { CustomerName: `${firstName} ${lastName}`, CustomerEmail: emailAddress, CustomerPhone: phone, ShippingAddress: fullAddress, PaymentMethod: selectedPayment, PromotionCode: promoCodeToSave, cartItems };
+    const guestPayload = { CustomerName: `${firstName} ${lastName}`, CustomerEmail: emailForOrder, CustomerPhone: phone, ShippingAddress: fullAddress, PaymentMethod: selectedPayment, PromotionCode: promoCodeToSave, cartItems };
     return { authPayload, guestPayload };
   };
 
@@ -365,6 +381,12 @@ const Checkout = () => {
     const { authPayload, guestPayload } = buildPayloads(formData);
     const url = token ? "/orders/checkout" : "/orders/guest-checkout";
     const payload = token ? authPayload : guestPayload;
+
+    // Validate email khớp với tài khoản đăng nhập (áp dụng cả COD lẫn Bank Transfer)
+    if (token && emailInput.trim().toLowerCase() !== loggedInEmail.toLowerCase()) {
+      toast.error(`Email không hợp lệ! Vui lòng dùng email đăng nhập: ${loggedInEmail}`);
+      return;
+    }
 
     if (selectedPayment === "BANK TRANSFER") {
       // Lưu payload sau khi form validate OK → mở modal thanh toán
@@ -435,10 +457,43 @@ const Checkout = () => {
               <div>
                 <h2 className="text-lg font-medium text-gray-900">{t("checkout.contact", "Contact information")}</h2>
                 <div className="mt-4">
-                  <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">{t("checkout.email", "Email address")}</label>
+                  <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">
+                    {t("checkout.email", "Email address")}
+                    {token && <span className="ml-2 text-xs text-emerald-600 font-normal">✓ Tài khoản đã đăng nhập</span>}
+                  </label>
                   <div className="mt-1">
-                    <input type="email" id="email-address" name="emailAddress" autoComplete="email"
-                      className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border shadow-sm sm:text-sm" required />
+                    {token ? (
+                      // Đã đăng nhập: email được điền sẵn, vẫn có thể chỉnh nhưng phải khớp tài khoản
+                      <div className="relative">
+                        <input
+                          type="email"
+                          id="email-address"
+                          name="emailAddress"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          className={`block w-full py-2 indent-2 border shadow-sm sm:text-sm outline-none transition-all ${
+                            emailInput.trim().toLowerCase() !== loggedInEmail.toLowerCase() && emailInput !== ""
+                              ? "border-red-400 focus:border-red-500 bg-red-50"
+                              : "border-gray-300 focus:border-emerald-400 bg-emerald-50/30"
+                          }`}
+                        />
+                        {emailInput.trim().toLowerCase() !== loggedInEmail.toLowerCase() && emailInput !== "" ? (
+                          <p className="mt-1 text-xs text-red-500 font-medium">⚠️ Email phải khớp với tài khoản đăng nhập</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-emerald-600">✓ Email tài khoản của bạn</p>
+                        )}
+                      </div>
+                    ) : (
+                      // Khách vãng lai: tự nhập email
+                      <input
+                        type="email"
+                        id="email-address"
+                        name="emailAddress"
+                        autoComplete="email"
+                        className="block w-full py-2 indent-2 border-gray-300 outline-none focus:border-gray-400 border shadow-sm sm:text-sm"
+                        required
+                      />
+                    )}
                   </div>
                 </div>
               </div>

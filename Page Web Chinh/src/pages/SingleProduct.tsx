@@ -15,6 +15,7 @@ import { formatCategoryName } from "../utils/formatCategoryName";
 import toast from "react-hot-toast";
 import { getImageUrl } from "../utils/formatImageUrl";
 import { formatCurrency } from "../utils/formatCurrency";
+import { API_BASE_URL } from "../utils/apiConfig";
 import customFetch from "../axios/custom";
 import { useTranslation } from "react-i18next";
 
@@ -38,7 +39,7 @@ const SingleProduct = () => {
   useEffect(() => {
     const fetchSingleProduct = async () => {
       const response = await fetch(
-        `http://localhost:8080/api/products/${params.id}`
+        `${API_BASE_URL}/products/${params.id}`
       );
       const data = await response.json();
       setSingleProduct(data);
@@ -50,7 +51,7 @@ const SingleProduct = () => {
     };
 
     const fetchProducts = async () => {
-      const response = await fetch("http://localhost:8080/api/products");
+      const response = await fetch(`${API_BASE_URL}/products`);
       const data = await response.json();
       setProducts(data);
     };
@@ -300,7 +301,7 @@ const SingleProduct = () => {
                         if(!name || !comment) return toast.error("Vui lòng nhập tên và bình luận!");
                         
                         try {
-                           const res = await fetch('http://localhost:8080/api/reviews', {
+                           const res = await fetch(`${API_BASE_URL}/reviews`, {
                              method: 'POST',
                              headers: { 'Content-Type': 'application/json' },
                              body: JSON.stringify({ ProductID: Number(singleProduct?.id), GuestName: name, Rating: Number(rating), Comment: comment })
@@ -308,7 +309,7 @@ const SingleProduct = () => {
                            if(res.ok) {
                              toast.success("Cảm ơn bạn đã đánh giá!");
                              // Tự Refresh Data
-                             const pRes = await fetch(`http://localhost:8080/api/products/${params.id}`);
+                             const pRes = await fetch(`${API_BASE_URL}/products/${params.id}`);
                              const pData = await pRes.json();
                              setSingleProduct(pData);
                              (document.getElementById('reviewName') as HTMLInputElement).value = '';

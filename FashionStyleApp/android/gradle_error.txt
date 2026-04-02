@@ -1,0 +1,57 @@
+﻿.\gradlew : 
+At line:1 char:1
++ .\gradlew clean 2>&1 | 
+Out-File -FilePath 
+"gradle_error.txt" 
+-Encodin ...
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (:  
+  String) [], RemoteExc   
+ eption
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+FAILURE: Build failed 
+with an exception.
+
+* Where:
+Settings file 'D:\Final Pr
+oject\FashionStyleApp\andr
+oid\settings.gradle' 
+line: 2
+
+* What went wrong:
+Error resolving plugin 
+[id: 'com.facebook.react.s
+ettings']
+> java.io.UncheckedIOExcep
+tion: Could not move 
+temporary workspace 
+(D:\Final Project\FashionS
+tyleApp\android\.gradle\8.
+8\dependencies-accessors\7
+fcb0c0ad2c738bd0405efd8c2e
+211751e56733e-4337dd07-c56
+7-4e49-a314-d87717cac7ca) 
+to immutable location 
+(D:\Final Project\FashionS
+tyleApp\android\.gradle\8.
+8\dependencies-accessors\7
+fcb0c0ad2c738bd0405efd8c2e
+211751e56733e)
+
+* Try:
+> Run with --stacktrace 
+option to get the stack 
+trace.
+> Run with --info or 
+--debug option to get 
+more log output.
+> Run with --scan to get 
+full insights.
+> Get more help at 
+https://help.gradle.org.
+
+BUILD FAILED in 1s

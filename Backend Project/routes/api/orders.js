@@ -118,7 +118,11 @@ router.post("/checkout", requireAuth, async (req, res) => {
           'SELECT Price, COALESCE(DiscountPercent, 0) AS DiscountPercent FROM Products WHERE ProductID = ?',
           [cartItems[i].ProductID]
         );
-        if (prodRows.length === 0) throw new Error(`Sản phẩm ${cartItems[i].ProductID} không tồn tại`);
+        if (prodRows.length === 0) {
+          console.error(`[CHECKOUT] Sản phẩm ID ${cartItems[i].ProductID} không tồn tại trong DB`);
+          await connection.rollback();
+          return res.status(400).json({ message: `Sản phẩm trong giỏ hàng không còn tồn tại (ID: ${cartItems[i].ProductID}). Vui lòng làm mới giỏ hàng.` });
+        }
         const basePrice = prodRows[0].Price;
         const discountPct = prodRows[0].DiscountPercent || 0;
         // Giá sau khi giảm của sản phẩm
@@ -133,7 +137,9 @@ router.post("/checkout", requireAuth, async (req, res) => {
 
     // 3. Xử lý Khuyến mãi (PromotionCode)
     if (PromotionCode) {
-        // Ưu tiên check mã dùng 1 lần (promotions_code)
+        console.log(`[CHECKOUT] User ${userId} đang dùng mã: ${PromotionCode}`);
+
+        // Bước 1: Check mã dùng 1 lần trong bảng promotions_code
         const [singleUseRows] = await connection.query(
           `SELECT pc.CodeID, pc.PromotionID, p.DiscountPercent 
            FROM promotions_code pc
@@ -141,45 +147,73 @@ router.post("/checkout", requireAuth, async (req, res) => {
            WHERE pc.CodeValue = ? AND pc.IsUsed = 0 
            AND (pc.AssignedToUserID IS NULL OR pc.AssignedToUserID = ?)
            AND p.IsActive = 1 AND p.StartDate <= CURDATE() AND p.EndDate >= CURDATE()`,
-          [PromotionCode, req.user.UserID]
+          [PromotionCode, userId]
         );
 
+        console.log(`[CHECKOUT] Kết quả tìm mã single-use: ${singleUseRows.length} hàng`);
+
         if (singleUseRows.length > 0) {
+          // ✅ Tìm thấy mã hợp lệ dùng 1 lần
           discount = singleUseRows[0].DiscountPercent / 100;
           promotionId = singleUseRows[0].PromotionID;
-          // Đánh dấu mã này đã sử dụng
           await connection.query("UPDATE promotions_code SET IsUsed = 1 WHERE CodeID = ?", [singleUseRows[0].CodeID]);
+          // Cập nhật UserVouchers để mã biến mất khỏi hồ sơ user (nếu có bản ghi)
+          await connection.query(
+            "UPDATE UserVouchers SET IsUsed = 1 WHERE UserID = ? AND PromotionID = ?",
+            [userId, singleUseRows[0].PromotionID]
+          );
+          console.log(`[CHECKOUT] ✅ Áp dụng mã single-use, giảm ${singleUseRows[0].DiscountPercent}%`);
         } else {
-          // Fallback: Check mã chung/VIP (Promotions)
+          // Bước 2: Kiểm tra xem mã có phải là mã đã dùng rồi không
+          const [alreadyUsed] = await connection.query(
+            `SELECT pc.CodeID FROM promotions_code pc
+             WHERE pc.CodeValue = ? AND pc.IsUsed = 1`,
+            [PromotionCode]
+          );
+          if (alreadyUsed.length > 0) {
+            console.log(`[CHECKOUT] ❌ Mã single-use đã được sử dụng rồi`);
+            await connection.rollback();
+            return res.status(400).json({ message: "Mã khuyến mãi này đã được sử dụng rồi!" });
+          }
+
+          // Bước 3: Fallback - kiểm tra trong bảng Promotions (mã chung theo chiến dịch)
           const [promoRows] = await connection.query(
               "SELECT PromotionID, DiscountPercent FROM Promotions WHERE Code = ? AND IsActive = 1 AND StartDate <= CURDATE() AND EndDate >= CURDATE()",
               [PromotionCode]
           );
+          console.log(`[CHECKOUT] Kết quả tìm mã Promotions chung: ${promoRows.length} hàng`);
+
           if (promoRows.length > 0) {
               const promoId = promoRows[0].PromotionID;
               
+              // Kiểm tra user đã dùng mã này chưa (trong UserVouchers)
               const [userVoucher] = await connection.query(
                   "SELECT IsUsed FROM UserVouchers WHERE UserID = ? AND PromotionID = ?",
                   [userId, promoId]
               );
               
               if (userVoucher.length > 0 && userVoucher[0].IsUsed === 1) {
+                  console.log(`[CHECKOUT] ❌ UserVouchers.IsUsed = 1 cho user này`);
                   await connection.rollback();
                   return res.status(400).json({ message: "Mã khuyến mãi này bạn đã sử dụng, mỗi mã chỉ dùng được 1 lần!" });
               }
               
+              // Kiểm tra đơn hàng trước chưa dùng mã này
               const [orderUsed] = await connection.query(
                   "SELECT OrderID FROM Orders WHERE UserID = ? AND PromotionID = ? AND Status != 'CANCELLED'",
                   [userId, promoId]
               );
               if (orderUsed.length > 0) {
+                  console.log(`[CHECKOUT] ❌ Đã có đơn hàng #${orderUsed[0].OrderID} dùng promotionId ${promoId}`);
                   await connection.rollback();
                   return res.status(400).json({ message: "Mã khuyến mãi này bạn đã sử dụng cho đơn hàng trước đó!" });
               }
 
               discount = promoRows[0].DiscountPercent / 100;
               promotionId = promoId;
+              console.log(`[CHECKOUT] ✅ Áp dụng mã chung, giảm ${promoRows[0].DiscountPercent}%`);
               
+              // Cập nhật UserVouchers nếu có bản ghi
               if (userVoucher.length > 0) {
                   await connection.query(
                       "UPDATE UserVouchers SET IsUsed = 1 WHERE UserID = ? AND PromotionID = ?",
@@ -187,6 +221,7 @@ router.post("/checkout", requireAuth, async (req, res) => {
                   );
               }
           } else {
+              console.log(`[CHECKOUT] ❌ Không tìm thấy mã "${PromotionCode}" ở bất kỳ đâu`);
               await connection.rollback();
               return res.status(400).json({ message: "Mã khuyến mãi không hợp lệ hoặc đã hết hạn." });
           }

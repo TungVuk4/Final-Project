@@ -6,12 +6,13 @@ import { formatCurrency } from "../utils/formatCurrency";
 import { getAuthToken } from "../features/auth/authSlice";
 import { HiArrowLeft, HiShoppingBag, HiClock, HiCheckCircle, HiXCircle, HiTruck } from "react-icons/hi2";
 import { useTranslation } from "react-i18next";
+import { API_BASE_URL } from "../utils/apiConfig";
 
 export const loader = async () => {
   const token = getAuthToken();
   if (!token) return [];
   try {
-    const response = await fetch("http://localhost:8080/api/orders/my-orders", {
+    const response = await fetch(`${API_BASE_URL}/orders/my-orders`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) return [];

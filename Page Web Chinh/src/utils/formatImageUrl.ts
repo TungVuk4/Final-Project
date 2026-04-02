@@ -1,3 +1,5 @@
+import { API_HOST } from "./apiConfig";
+
 export const getImageUrl = (image: string) => {
   if (!image) return '/assets/product image 1.jpg';
   if (image.startsWith('http')) return image;
@@ -15,5 +17,5 @@ export const getImageUrl = (image: string) => {
   }
   
   // Ảnh thật từ Backend Admin 
-  return `http://localhost:8080/uploads/product_images/${image}`;
+  return `${API_HOST}/uploads/product_images/${image}`;
 };

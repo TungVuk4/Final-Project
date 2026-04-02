@@ -103,8 +103,8 @@ export default function Promotions() {
     try {
       const res = await axios.get(`${API_URL}/promotions/${promoId}/codes`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data?.success) {
-        // Chỉ lấy mã chưa dùng (IsUsed = 0)
-        const available = res.data.data.filter(c => !c.IsUsed);
+        // Chỉ lấy mã chưa dùng VÀ chưa gán cho ai (IsUsed = 0 AND AssignedToUserID = null)
+        const available = res.data.data.filter(c => !c.IsUsed && !c.AssignedToUserID);
         setVipCodes(available);
       }
     } catch (e) {
@@ -593,10 +593,14 @@ export default function Promotions() {
         <div className="bg-white p-8 pb-10 border-b border-slate-100/50 shadow-[0_10px_30px_rgba(0,0,0,0.02)] z-10">
           <div className="flex flex-col gap-8">
             {/* Usage Stats Summary */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t("total_codes", "Tổng số mã")}</p>
                 <p className="text-xl font-black text-slate-700">{generatedCodes.length}</p>
+              </div>
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">{t("assigned_codes", "Đã gán")}</p>
+                <p className="text-xl font-black text-amber-600">{generatedCodes.filter(c => c.AssignedToUserID && !c.IsUsed).length}</p>
               </div>
               <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
                 <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">{t("used_codes", "Đã dùng")}</p>
@@ -604,7 +608,7 @@ export default function Promotions() {
               </div>
               <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
                 <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t("available_codes", "Khả dụng")}</p>
-                <p className="text-xl font-black text-indigo-600">{generatedCodes.filter(c => !c.IsUsed).length}</p>
+                <p className="text-xl font-black text-indigo-600">{generatedCodes.filter(c => !c.IsUsed && !c.AssignedToUserID).length}</p>
               </div>
             </div>
 
@@ -673,11 +677,26 @@ export default function Promotions() {
                   <span className="font-black text-slate-700 tracking-[0.1em] text-sm select-all bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">{r.CodeValue}</span>
                 </div>
               )} />
+              <Column field="AssignedToUserName" header={t("assigned_to", "ĐÃ GÁN CHO")} body={(r) => (
+                r.AssignedToUserID ? (
+                  <div className="inline-flex items-center gap-2 text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100">
+                    <i className="pi pi-user text-[10px]"></i>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{r.AssignedToUserName || `User #${r.AssignedToUserID}`}</span>
+                  </div>
+                ) : (
+                  <span className="text-slate-300 text-[10px] font-bold">—</span>
+                )
+              )} align="center" />
               <Column field="IsUsed" header={t("status", "TRẠNG THÁI")} body={(r) => (
                 r.IsUsed ? (
                   <div className="inline-flex items-center gap-2 text-rose-500 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 pointer-events-none">
                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                     <span className="text-[10px] font-black uppercase tracking-widest">{t("code_used", "Đã dùng")}</span>
+                  </div>
+                ) : r.AssignedToUserID ? (
+                  <div className="inline-flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200 pointer-events-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t("code_assigned", "Đã gán")}</span>
                   </div>
                 ) : (
                   <div className="inline-flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 pointer-events-none">

@@ -246,38 +246,59 @@ const UserProfile = () => {
               <div className="flex flex-col gap-5">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-bold text-stone-800">{t("profile.vip_vrs", "Kho Voucher Đặc Quyền ✨")}</h3>
-                  <span className="text-sm font-medium text-stone-500">{vouchers.length} {t("profile.avail", "mã khả dụng")}</span>
+                  <span className="text-sm font-medium text-stone-500">
+                    {vouchers.filter((v: any) => !v.IsUsed).length} {t("profile.avail", "mã khả dụng")}
+                  </span>
                 </div>
 
                 {vouchersLoading ? (
                   <div className="text-center py-10 text-stone-500 animate-pulse">{t("profile.loading", "Đang tải voucher...")}</div>
                 ) : vouchers.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {vouchers.map(v => (
-                      <div key={v.VoucherID} className="bg-gradient-to-r from-stone-50 to-stone-100/50 border border-stone-200 rounded-xl p-5 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-2 h-full bg-stone-800 opacity-20 group-hover:opacity-100 transition-opacity"></div>
+                    {vouchers.map((v: any) => (
+                      <div key={v.VoucherID} className={`border rounded-xl p-5 relative overflow-hidden group transition-all ${
+                        v.IsUsed
+                          ? 'bg-stone-100/50 border-stone-200 opacity-60'
+                          : 'bg-gradient-to-r from-stone-50 to-stone-100/50 border-stone-200 hover:shadow-md'
+                      }`}>
+                        {/* Used badge */}
+                        {v.IsUsed && (
+                          <div className="absolute top-3 right-3 bg-stone-400 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">
+                            Đã sử dụng
+                          </div>
+                        )}
+                        {!v.IsUsed && <div className="absolute top-0 right-0 w-2 h-full bg-stone-800 opacity-20 group-hover:opacity-100 transition-opacity"></div>}
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <span className="inline-block px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase rounded-md mb-2 tracking-wider">
                               {t("profile.off", "Giảm")} {v.DiscountPercent}%
                             </span>
-                            <h4 className="font-mono text-xl font-bold tracking-widest text-stone-800 bg-white px-3 py-1.5 rounded border border-stone-200 shadow-sm inline-block">
+                            <h4 className={`font-mono text-xl font-bold tracking-widest px-3 py-1.5 rounded border shadow-sm inline-block ${
+                              v.IsUsed
+                                ? 'text-stone-400 bg-stone-100 border-stone-200 line-through'
+                                : 'text-stone-800 bg-white border-stone-200'
+                            }`}>
                               {v.Code}
                             </h4>
                           </div>
-                          <button 
-                            onClick={() => {
-                              navigator.clipboard.writeText(v.Code);
-                              toast.success("Đã sao chép mã vourcher!");
-                            }}
-                            className="w-8 h-8 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-800 hover:border-stone-400 transition-colors"
-                            title="Sao chép mã"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                          </button>
+                          {!v.IsUsed && (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(v.Code);
+                                toast.success("Đã sao chép mã voucher!");
+                              }}
+                              className="w-8 h-8 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-800 hover:border-stone-400 transition-colors"
+                              title="Sao chép mã"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                            </button>
+                          )}
                         </div>
                         <div className="text-xs text-stone-500 font-medium">
-                          {t("profile.exp", "HSD")}: {new Date(v.EndDate).toLocaleDateString("vi-VN")}
+                          {v.IsUsed
+                            ? <span className="text-stone-400">✓ Mã đã được dùng</span>
+                            : <>{t("profile.exp", "HSD")}: {new Date(v.EndDate).toLocaleDateString("vi-VN")}</>
+                          }
                         </div>
                       </div>
                     ))}
