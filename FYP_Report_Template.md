@@ -139,11 +139,11 @@ I also would like to express my appreciation to my family and friends for their 
 | Table 2.6 | Database Schema — Products Table | 26 |
 | Table 2.7 | Database Schema — Orders Table | 27 |
 | Table 2.8 | Database Schema — UserVouchers Table | 27 |
-| Table 3.1 | Software Prerequisites | 30 |
-| Table 4.1 | Test Cases — Authentication Module (UC-WEB-01, UC-WEB-02) | 44 |
-| Table 4.2 | Test Cases — Product Management Module (UC-WEB-06, UC-WEB-07) | 46 |
-| Table 4.3 | Test Cases — Order Processing Module (UC-WEB-11, UC-WEB-12) | 48 |
-| Table 4.4 | Test Cases — Admin Management Module (UC-ADM-01 to UC-ADM-08) | 50 |
+| Table 3.1 | Database Functional Groups | 29 |
+| Table 4.1 | Software Prerequisites | 30 |
+| Table 4.2 | Test Cases — Authentication Module | 44 |
+| Table 4.3 | Test Cases — Order Module | 46 |
+| Table 4.4 | Test Cases — Mobile Application | 48 |
 
 ---
 
@@ -175,21 +175,57 @@ I also would like to express my appreciation to my family and friends for their 
 
 | Abbreviation | Full Form |
 |-------------|-----------|
+| ADB | Android Debug Bridge |
+| ACID | Atomicity, Consistency, Isolation, Durability |
+| AGP | Android Gradle Plugin |
 | API | Application Programming Interface |
 | APK | Android Package Kit |
-| ADB | Android Debug Bridge |
+| AVD | Android Virtual Device |
+| AWS | Amazon Web Services |
+| COD | Cash on Delivery |
+| CPU | Central Processing Unit |
 | CRUD | Create, Read, Update, Delete |
+| CSS | Cascading Style Sheets |
+| DB | Database |
 | DFD | Data Flow Diagram |
+| DOM | Document Object Model |
+| ENV | Environment (configuration file) |
 | ERD | Entity Relationship Diagram |
+| FCM | Firebase Cloud Messaging |
+| FR | Functional Requirement |
+| GIT | Global Information Tracker (version control system) |
+| HMR | Hot Module Replacement |
+| HTML | Hypertext Markup Language |
 | HTTP | Hypertext Transfer Protocol |
+| HTTPS | Hypertext Transfer Protocol Secure |
+| I/O | Input / Output |
+| IDE | Integrated Development Environment |
+| i18n | Internationalization |
 | IT | Information Technology |
+| JSON | JavaScript Object Notation |
 | JWT | JSON Web Token |
+| MVC | Model-View-Controller |
+| NFR | Non-Functional Requirement |
+| npm | Node Package Manager |
+| OTP | One-Time Password |
 | OUM | Open University Malaysia |
+| RBAC | Role-Based Access Control |
+| RDBMS | Relational Database Management System |
+| RAD | Rapid Application Development |
 | REST | Representational State Transfer |
+| SDK | Software Development Kit |
 | SDLC | Software Development Life Cycle |
+| SME | Small and Medium-sized Enterprise |
+| SMTP | Simple Mail Transfer Protocol |
 | SQL | Structured Query Language |
+| TCP | Transmission Control Protocol |
+| UC | Use Case |
 | UI | User Interface |
+| URL | Uniform Resource Locator |
+| USD | United States Dollar |
 | UX | User Experience |
+| VIP | Very Important Person (referring to premium customers) |
+| VS Code | Visual Studio Code |
 
 ---
 
@@ -286,6 +322,8 @@ The following aspects are explicitly outside the scope of this project:
 
 The project was executed across seven phases over a 16-week period, following the Rapid Application Development (RAD) methodology with iterative design and testing cycles.
 
+**Table 2.4 — Implementation Plan (7 Phases)**
+
 | Phase | Activity | Duration | Key Deliverable |
 |-------|----------|----------|-----------------|
 | Phase 1 | Requirements Analysis & System Design | 2 weeks | System Architecture Document, ERD, Use Case Diagrams |
@@ -330,6 +368,8 @@ The automatic admin account provisioning on server startup (`initAdminAccounts()
 
 ### 2.1.3 Cost-Benefit Analysis
 
+**Table 2.3 — Cost-Benefit Analysis**
+
 | Item | Estimated Cost |
 |------|----------------|
 | Development Tools (VS Code, Android Studio) | Free (Open Source) |
@@ -351,7 +391,9 @@ The automatic admin account provisioning on server startup (`initAdminAccounts()
 
 ## 2.2 Requirement Methods
 
-### 3.2.1 Functional Requirements
+### 2.2.1 Functional Requirements
+
+**Table 2.1 — Functional Requirements (FR01–FR10)**
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
@@ -366,7 +408,9 @@ The automatic admin account provisioning on server startup (`initAdminAccounts()
 | FR09 | The mobile app embeds the web interface on Android | High |
 | FR10 | Admin 1 can toggle maintenance mode via dashboard | Medium |
 
-### 3.2.2 Non-Functional Requirements
+### 2.2.2 Non-Functional Requirements
+
+**Table 2.2 — Non-Functional Requirements (NFR01–NFR05)**
 
 | ID | Requirement |
 |----|-------------|
@@ -581,68 +625,76 @@ The customer interacts with the system through two channels — the web applicat
 
 ## 2.5 Database Design
 
-### 3.5.1 Entity-Relationship Diagram (ERD)
+### 2.5.1 Entity-Relationship Diagram (ERD)
 
 *(Nhúng ảnh ERD tại đây)*
 
-### 3.5.2 Database Schema
+### 2.5.2 Database Schema
 
-**Table: Users**
+**Table 2.5 — Database Schema: Users Table**
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | UserID | INT | PRIMARY KEY, AUTO_INCREMENT |
-| FullName | VARCHAR(255) | NOT NULL |
-| Email | VARCHAR(255) | UNIQUE, NOT NULL |
+| FullName | VARCHAR(100) | NOT NULL |
+| Email | VARCHAR(100) | UNIQUE, NOT NULL |
 | PasswordHash | VARCHAR(255) | NOT NULL |
-| Role | ENUM('Customer','Admin') | DEFAULT 'Customer' |
+| Address | VARCHAR(255) | NULL |
+| PhoneNumber | VARCHAR(15) | NULL |
+| Role | VARCHAR(20) | NOT NULL, DEFAULT 'Customer' |
 | IsActive | TINYINT(1) | DEFAULT 1 |
 | CanDeleteProduct | TINYINT(1) | DEFAULT 0 |
+| CanAccessCustomerInfo | TINYINT(1) | DEFAULT 1 |
 | CreatedAt | DATETIME | DEFAULT CURRENT_TIMESTAMP |
 
-**Table: Products**
+**Table 2.6 — Database Schema: Products Table**
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | ProductID | INT | PRIMARY KEY, AUTO_INCREMENT |
-| Name | VARCHAR(255) | NOT NULL |
-| Description | TEXT | |
+| ProductName | VARCHAR(255) | NOT NULL |
+| Description | TEXT | NULL |
 | Price | DECIMAL(10,2) | NOT NULL |
+| DiscountPercent | INT | DEFAULT 0 |
+| StockQuantity | INT | NOT NULL, DEFAULT 0 |
 | CategoryID | INT | FOREIGN KEY → Categories |
-| ImageURL | VARCHAR(500) | |
 | CreatedAt | DATETIME | DEFAULT CURRENT_TIMESTAMP |
 
-**Table: Orders**
+**Table 2.7 — Database Schema: Orders Table**
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | OrderID | INT | PRIMARY KEY, AUTO_INCREMENT |
 | UserID | INT | FOREIGN KEY → Users |
-| TotalAmount | DECIMAL(10,2) | NOT NULL |
-| Status | VARCHAR(50) | DEFAULT 'PENDING' |
-| PaymentMethod | VARCHAR(50) | |
-| ShippingAddress | TEXT | |
-| CreatedAt | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| GuestEmail | VARCHAR(255) | NULL |
+| OrderDate | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| TotalAmount | DECIMAL(12,2) | NOT NULL |
+| Status | VARCHAR(50) | NOT NULL, DEFAULT 'Chờ xử lý' |
+| ShippingAddress | VARCHAR(255) | NOT NULL |
+| PaymentMethod | VARCHAR(50) | NULL |
+| PromotionID | INT | FOREIGN KEY → Promotions |
 
 **Table: Promotions**
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | PromotionID | INT | PRIMARY KEY, AUTO_INCREMENT |
-| Code | VARCHAR(100) | UNIQUE |
-| DiscountPercent | DECIMAL(5,2) | |
-| IsUsed | TINYINT(1) | DEFAULT 0 |
-| IsActive | TINYINT(1) | DEFAULT 1 |
+| Code | VARCHAR(50) | UNIQUE, NOT NULL |
+| DiscountPercent | DECIMAL(5,2) | NOT NULL |
+| StartDate | DATETIME | NOT NULL |
+| EndDate | DATETIME | NOT NULL |
+| IsActive | BOOLEAN | NOT NULL, DEFAULT 1 |
 
-**Table: UserVouchers**
+**Table 2.8 — Database Schema: UserVouchers Table**
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | VoucherID | INT | PRIMARY KEY, AUTO_INCREMENT |
-| UserID | INT | FOREIGN KEY → Users |
-| PromotionID | INT | FOREIGN KEY → Promotions |
-| IsUsed | TINYINT(1) | DEFAULT 0 |
+| UserID | INT | NOT NULL, FOREIGN KEY → Users |
+| PromotionID | INT | NOT NULL, FOREIGN KEY → Promotions |
 | AssignedAt | DATETIME | DEFAULT CURRENT_TIMESTAMP |
+| IsUsed | TINYINT(1) | DEFAULT 0 |
+| SpecificCode | VARCHAR(50) | NULL |
 
 ## 2.6 Interface Design
 
@@ -699,6 +751,8 @@ The key native implementation in `App.tsx` includes:
 3. **Connection Pooling:** The `mysql2` Node.js driver is configured with a connection pool (`db.js`), allowing the backend to reuse established database connections rather than creating a new TCP connection for each query, significantly improving API throughput.
 
 The database schema consists of **21 tables** organised into five functional groups:
+
+**Table 3.1 — Database Functional Groups**
 
 | Group | Tables | Purpose |
 |-------|--------|---------|
@@ -770,6 +824,8 @@ Email types implemented:
 ## 4.1 System Implementation and Installation
 
 ### 4.1.1 Prerequisites
+
+**Table 4.1 — Software Prerequisites**
 
 | Software | Version | Purpose |
 |----------|---------|---------|
@@ -849,11 +905,11 @@ npm run android
 
 ## 4.3 System User Guides
 
-### 4.2.1 Customer Web Application
+### 4.3.1 Customer Web Application
 
 *(Screenshots with step-by-step annotations: Register → Login → Browse products → Add to cart → Checkout)*
 
-### 4.2.2 Admin Dashboard
+### 4.3.2 Admin Dashboard
 
 **Admin Level 1 (Admin Chính):**
 - Login: `admin1@fashionstyle.com` / `Admin@123`
@@ -867,17 +923,19 @@ npm run android
 - Login: `admin3@fashionstyle.com` / `Admin@789`
 - Access: Order Processing and Status Updates
 
-### 4.2.3 Mobile Application (Android)
+### 4.3.3 Mobile Application (Android)
 
 *(Screenshots of the App screen on the Android emulator + description of features)*
 
 ## 4.4 Testing Plan and Output (Evaluation)
 
-### 4.3.1 Testing Approach
+### 4.4.1 Testing Approach
 
 This project utilises **Black Box Testing** methodology, verifying system behaviour against functional requirements without examining internal code logic.
 
-### 4.3.2 Test Cases — Authentication Module
+### 4.4.2 Test Cases — Authentication Module
+
+**Table 4.2 — Test Cases: Authentication Module**
 
 | Test ID | Test Case | Input | Expected Output | Actual Output | Status |
 |---------|-----------|-------|-----------------|---------------|--------|
@@ -886,7 +944,9 @@ This project utilises **Black Box Testing** methodology, verifying system behavi
 | TC-AUTH-03 | Admin Login with Admin credentials | admin1@fashionstyle.com / Admin@123 | Redirect to Admin Dashboard | As expected | ✅ Pass |
 | TC-AUTH-04 | Register with existing email | Email already in DB | "Email already exists" error | As expected | ✅ Pass |
 
-### 4.3.3 Test Cases — Order Module
+### 4.4.3 Test Cases — Order Module
+
+**Table 4.3 — Test Cases: Order Module**
 
 | Test ID | Test Case | Expected Output | Status |
 |---------|-----------|-----------------|--------|
@@ -895,7 +955,9 @@ This project utilises **Black Box Testing** methodology, verifying system behavi
 | TC-ORD-03 | Place order with already-used code | "Code already used" error | ✅ Pass |
 | TC-ORD-04 | Admin 3 updates order to PROCESSING | Status updated in DB, Admin 1 notified | ✅ Pass |
 
-### 4.3.4 Test Cases — Mobile Application
+### 4.4.4 Test Cases — Mobile Application
+
+**Table 4.4 — Test Cases: Mobile Application**
 
 | Test ID | Test Case | Expected Output | Status |
 |---------|-----------|-----------------|--------|
@@ -906,7 +968,7 @@ This project utilises **Black Box Testing** methodology, verifying system behavi
 
 ### Core Function Codes
 
-### 4.4.1 Backend — JWT Authentication Middleware
+### 4.4.5 Backend — JWT Authentication Middleware
 
 ```javascript
 // middlewares/auth.js
@@ -926,7 +988,7 @@ function requireAuth(req, res, next) {
 }
 ```
 
-### 4.4.2 Mobile App — WebView with Back Button Handler (App.tsx)
+### 4.4.6 Mobile App — WebView with Back Button Handler (App.tsx)
 
 ```typescript
 // FashionStyleApp/App.tsx
@@ -946,7 +1008,7 @@ React.useEffect(() => {
 }, [handleBackButton]);
 ```
 
-### 4.4.3 Backend — One-Time VIP Promotional Code Validation
+### 4.4.7 Backend — One-Time VIP Promotional Code Validation
 
 ```javascript
 // routes/api/orders.js (excerpt)
