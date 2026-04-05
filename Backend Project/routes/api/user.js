@@ -3,6 +3,19 @@ const pool = require("../../dbpool/db");
 const bcrypt = require("bcryptjs"); // Đảm bảo đã import bcrypt cho chức năng đổi mật khẩu
 const { requireAuth, requireAdmin, requireAdminLevel1 } = require("../../middlewares/auth");
 const router = express.Router();
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
 
 // ----------------------------------------------------------------
 // [CUSTOMER] Lấy hồ sơ người dùng hiện tại (Cần xác thực)
@@ -192,20 +205,79 @@ router.delete("/admin/:id", requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ----------------------------------------------------------------
-// [CUSTOMER/ADMIN] Thay đổi mật khẩu
+// [CUSTOMER/ADMIN] Gửi mã OTP xác nhận trước khi đổi mật khẩu
 // ----------------------------------------------------------------
-router.put("/change-password", requireAuth, async (req, res) => {
+router.post("/request-change-password-otp", requireAuth, async (req, res) => {
   const userId = req.user.userId;
-  const { oldPassword, newPassword } = req.body;
+  const { oldPassword } = req.body;
 
-  if (!oldPassword || !newPassword)
-    return res.status(400).json({ message: "Thiếu thông tin mật khẩu." });
+  if (!oldPassword)
+    return res.status(400).json({ message: "Vui lòng cung cấp mật khẩu cũ." });
 
   try {
     const [rows] = await pool.query(
-      "SELECT PasswordHash FROM Users WHERE UserID = ?",
+      "SELECT Email, PasswordHash FROM Users WHERE UserID = ?",
       [userId]
     );
+
+    if (rows.length === 0)
+      return res.status(404).json({ message: "Không tìm thấy người dùng." });
+
+    const isMatch = await bcrypt.compare(oldPassword, rows[0].PasswordHash);
+    if (!isMatch)
+      return res.status(400).json({ message: "Mật khẩu cũ không đúng." });
+
+    const email = rows[0].Email;
+    // Mã 6 số ngắn ngẫu nhiên
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiration = new Date(Date.now() + 10 * 60000); // 10 phút
+
+    await pool.query(
+      `INSERT INTO User_Password_Reset (UserID, ResetToken, ExpiresAt) 
+       VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE ResetToken = ?, ExpiresAt = ?`,
+      [userId, otp, expiration, otp, expiration]
+    );
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "[FashionStyle] Mã OTP xác nhận đổi mật khẩu",
+      html: `<h3>Mã xác nhận bảo mật để thao tác Đổi mật khẩu của bạn là: <b style="color: blue;">${otp}</b></h3>
+             <p>Mã này có hiệu lực trong vòng 10 phút. Nếu bạn không yêu cầu thay đổi thao tác này, vui lòng bỏ qua email.</p>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true, message: "Mã OTP đã được gửi đến email của bạn." });
+  } catch (error) {
+    console.error("Lỗi gửi OTP đổi mật khẩu:", error);
+    res.status(500).json({ error: "Lỗi server khi gửi OTP" });
+  }
+});
+
+// ----------------------------------------------------------------
+// [CUSTOMER/ADMIN] Thay đổi mật khẩu (yêu cầu OTP)
+// ----------------------------------------------------------------
+router.put("/change-password", requireAuth, async (req, res) => {
+  const userId = req.user.userId;
+  const { oldPassword, newPassword, OTP } = req.body;
+
+  if (!oldPassword || !newPassword || !OTP)
+    return res.status(400).json({ message: "Thiếu thông tin mật khẩu hoặc mã OTP." });
+
+  try {
+    // Kiểm tra OTP hợp lệ
+    const [rows] = await pool.query(
+      `SELECT u.PasswordHash, r.ResetToken 
+       FROM Users u 
+       JOIN User_Password_Reset r ON u.UserID = r.UserID 
+       WHERE u.UserID = ? AND r.ResetToken = ? AND r.ExpiresAt > NOW()`,
+      [userId, OTP]
+    );
+
+    if (rows.length === 0)
+      return res.status(400).json({ message: "Mã OTP không đúng hoặc đã hết hạn." });
+
+    // Xác minh lại mật khẩu cũ cho chắc chắn
     const isMatch = await bcrypt.compare(oldPassword, rows[0].PasswordHash);
     if (!isMatch)
       return res.status(400).json({ message: "Mật khẩu cũ không đúng." });
@@ -217,10 +289,14 @@ router.put("/change-password", requireAuth, async (req, res) => {
       userId,
     ]);
 
+    // Xoá OTP sau khi xử lý xong
+    await pool.query("DELETE FROM User_Password_Reset WHERE UserID = ?", [userId]);
+
     res
       .status(200)
       .json({ success: true, message: "Thay đổi mật khẩu thành công." });
   } catch (error) {
+    console.error("Lỗi đổi pass OTP:", error);
     res.status(500).json({ error: "Lỗi server" });
   }
 });

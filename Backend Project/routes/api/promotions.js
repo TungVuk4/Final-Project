@@ -43,7 +43,8 @@ router.post("/validate-promo", async (req, res) => {
   if (authHeader && authHeader.startsWith("Bearer ")) {
     try {
       const jwt = require("jsonwebtoken");
-      const decoded = jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
+      const secret = process.env.JWT_SECRET || "YOUR_SUPER_SECRET_KEY";
+      const decoded = jwt.verify(authHeader.split(" ")[1], secret);
       userId = decoded.userId || decoded.UserID || null;
     } catch (e) { /* Token không hợp lệ — bỏ qua, coi như guest */ }
   }
@@ -68,7 +69,7 @@ router.post("/validate-promo", async (req, res) => {
         return res.json({ valid: false, message: "Mã này đã được sử dụng mà không còn hiệu lực." });
       }
       // Kiểm tra xem mã có bị gán riêng cho user khác không
-      if (row.AssignedToUserID && row.AssignedToUserID !== userId) {
+      if (row.AssignedToUserID && Number(row.AssignedToUserID) !== Number(userId)) {
         return res.json({ valid: false, message: "Mã này không thuộc về tài khoản của bạn." });
       }
       return res.json({
@@ -292,11 +293,11 @@ router.post("/assign-to-user", requireAuth, requireAdminLevel2, async (req, res)
     // 3. Nếu gán một mã Random cụ thể
     if (CodeValue) {
       const [[codeData]] = await connection.query(
-        "SELECT CodeID FROM promotions_code WHERE CodeValue = ? AND PromotionID = ? AND IsUsed = 0",
+        "SELECT CodeID FROM promotions_code WHERE CodeValue = ? AND PromotionID = ? AND IsUsed = 0 AND AssignedToUserID IS NULL",
         [CodeValue, PromotionID]
       );
       if (!codeData) {
-        return res.status(400).json({ message: "Mã random này không hợp lệ hoặc đã được sử dụng." });
+        return res.status(400).json({ message: "Mã cấp phát này đã được gán cho người khác hoặc không còn khả dụng!" });
       }
       // Đánh dấu mã này chỉ dành cho User này
       await connection.query("UPDATE promotions_code SET AssignedToUserID = ? WHERE CodeValue = ?", [UserID, CodeValue]);

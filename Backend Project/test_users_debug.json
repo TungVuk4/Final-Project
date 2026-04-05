@@ -1,0 +1,27 @@
+[
+  {
+    "UserID": 1,
+    "Email": "nguyenvana@example.com",
+    "PasswordHash": "hashedpass1"
+  },
+  {
+    "UserID": 2,
+    "Email": "tranthib@example.com",
+    "PasswordHash": "hashedpass2"
+  },
+  {
+    "UserID": 6,
+    "Email": "dangminhf@example.com",
+    "PasswordHash": "hashedpass6"
+  },
+  {
+    "UserID": 7,
+    "Email": "hoangmaig@example.com",
+    "PasswordHash": "hashedpass7"
+  },
+  {
+    "UserID": 11,
+    "Email": "newcustomer@test.com",
+    "PasswordHash": "$2b$10$sd18ZvEMHPrtXidTbSRWpO0DDniAeFNGui0ZJO3INNNDV1Nlo1vka"
+  }
+]

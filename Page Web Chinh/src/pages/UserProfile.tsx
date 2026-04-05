@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import customFetch from "../axios/custom";
@@ -22,6 +22,11 @@ const UserProfile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "password" | "vouchers">("profile");
+  const [passStep, setPassStep] = useState<"form" | "otp">("form");
+  const [otp, setOtp] = useState("");
+  const [oldPassSave, setOldPassSave] = useState("");
+  const [newPassSave, setNewPassSave] = useState("");
+  const isSavingRef = useRef(false);
   
   // Vouchers state
   const [vouchers, setVouchers] = useState<any[]>([]);
@@ -70,8 +75,10 @@ const UserProfile = () => {
 
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const token = getAuthToken();
-    if (!token) { navigate("/login"); return; }
+    if (!token) { isSavingRef.current = false; navigate("/login"); return; }
     const formData = new FormData(e.currentTarget);
     setSaving(true);
     try {
@@ -86,33 +93,79 @@ const UserProfile = () => {
       toast.error("Cập nhật thất bại, thử lại sau.");
     } finally {
       setSaving(false);
+      isSavingRef.current = false;
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleRequestOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     const token = getAuthToken();
-    if (!token) { navigate("/login"); return; }
+    if (!token) { isSavingRef.current = false; navigate("/login"); return; }
+    
     const formData = new FormData(e.currentTarget);
     const oldPass = formData.get("oldPassword") as string;
     const newPass = formData.get("newPassword") as string;
     const confirm = formData.get("confirmPassword") as string;
 
-    if (newPass !== confirm) { toast.error("Mật khẩu xác nhận không khớp"); return; }
-    if (newPass.length < 6) { toast.error("Mật khẩu mới phải có ít nhất 6 ký tự"); return; }
+    if (!oldPass || !newPass || !confirm) { 
+      toast.error("Vui lòng điền đủ thông tin"); 
+      isSavingRef.current = false;
+      return; 
+    }
+    if (newPass !== confirm) { 
+      toast.error("Mật khẩu xác nhận không khớp"); 
+      isSavingRef.current = false;
+      return; 
+    }
+    if (newPass.length < 6) { 
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự"); 
+      isSavingRef.current = false;
+      return; 
+    }
 
     setSaving(true);
     try {
-      await customFetch.put("/user/change-password", {
+      await customFetch.post("/user/request-change-password-otp", {
         oldPassword: oldPass,
-        newPassword: newPass,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success("Mã OTP đã được gửi đến email của bạn!");
+      setOldPassSave(oldPass);
+      setNewPassSave(newPass);
+      setPassStep("otp");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Yêu cầu thất bại.");
+    } finally {
+      setSaving(false);
+      isSavingRef.current = false;
+    }
+  };
+
+  const handleConfirmChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isSavingRef.current) return;
+    if (!otp) { toast.error("Vui lòng nhập mã OTP"); return; }
+    
+    isSavingRef.current = true;
+    const token = getAuthToken();
+    setSaving(true);
+    try {
+      await customFetch.put("/user/change-password", {
+        oldPassword: oldPassSave,
+        newPassword: newPassSave,
+        OTP: otp,
       }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success("Đổi mật khẩu thành công!");
-      (e.currentTarget as HTMLFormElement).reset();
+      setPassStep("form");
+      setOtp("");
+      setOldPassSave("");
+      setNewPassSave("");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Đổi mật khẩu thất bại.");
     } finally {
       setSaving(false);
+      isSavingRef.current = false;
     }
   };
 
@@ -314,8 +367,8 @@ const UserProfile = () => {
             )}
 
             {/* Change Password Tab */}
-            {activeTab === "password" && (
-              <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
+            {activeTab === "password" && passStep === "form" && (
+              <form onSubmit={handleRequestOtp} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-stone-700">{t("profile.cur_pass", "Mật khẩu hiện tại")}</label>
                   <input
@@ -355,7 +408,45 @@ const UserProfile = () => {
                   className="bg-stone-800 hover:bg-stone-900 text-white font-medium py-3 px-6 rounded-lg
                              transition-all duration-200 disabled:opacity-60"
                 >
-                  {saving ? t("profile.changing", "Đang đổi...") : t("profile.change_pass", "Đổi mật khẩu")}
+                  {saving ? t("profile.sending_otp", "Đang gửi OTP...") : t("profile.change_pass", "Đổi mật khẩu")}
+                </button>
+              </form>
+            )}
+
+            {activeTab === "password" && passStep === "otp" && (
+              <form onSubmit={handleConfirmChangePassword} className="flex flex-col gap-5">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-700">
+                  ✅ Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư (kể cả thư rác).
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-stone-700">Mã OTP</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="Nhập mã 6 số"
+                    maxLength={6}
+                    className="border border-stone-300 rounded-lg px-4 py-3 text-xl text-center tracking-[0.5em] outline-none transition-all
+                               focus:border-stone-600 focus:ring-2 focus:ring-stone-200"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="bg-stone-800 hover:bg-stone-900 text-white font-medium py-3 px-6 rounded-lg
+                             transition-all duration-200 disabled:opacity-60"
+                >
+                  {saving ? "Đang xác nhận..." : "Xác nhận đổi mật khẩu"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setPassStep("form"); setOtp(""); }}
+                  className="text-center text-sm text-stone-500 hover:text-stone-800 transition-colors"
+                >
+                  ← Quay lại nhập mật khẩu
                 </button>
               </form>
             )}
